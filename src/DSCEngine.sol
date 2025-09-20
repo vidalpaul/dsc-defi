@@ -47,7 +47,14 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
 
     uint256 private constant MAX_SET_PRICE_FEEDS_ARRAY_LENGTH = 3;
     uint256 private constant MIN_COLLATERAL_TOKENS = 1;
-    uint256 private constant MIN_HEALTH_THRESHOLD = 1;
+
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
+    uint256 private constant LIQUIDATION_BONUS = 10; // This means you get assets at a 10% discount when liquidating
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant PRECISION = 1e18;
+    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant FEED_PRECISION = 1e8;
 
     uint256 private s_activeCollateralCount;
     address[] private s_collateralTokens;
@@ -210,13 +217,19 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
 
     function mintDSC(
         uint256 _amountDSCToMint
-    ) external moreThanZero(_amountDSCToMint) nonReentrant {
+    )
+        external
+        moreThanZero(_amountDSCToMint)
+        nonReentrant
+        returns (bool minted)
+    {
         s_userToDSCAmountMinted[msg.sender] += _amountDSCToMint;
 
-        // Has to be an internal function, instead of a modifier, because
-        // user's health should be checked after the balance update,
-        // allowing the user to save their position
         _revertIfUnhealthy(msg.sender);
+
+        minted = i_dsc.mint(msg.sender, _amountDSCToMint);
+
+        require(minted, DSC_Engine_DSC_MintFailed());
     }
 
     /**
@@ -362,7 +375,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
 
     function _revertIfUnhealthy(address _user) internal view {
         require(
-            _healthFactor(_user) >= MIN_HEALTH_THRESHOLD,
+            _healthFactor(_user) >= MIN_HEALTH_FACTOR,
             DSC_Engine_Health_UnhealthyPosition()
         );
     }
@@ -374,7 +387,21 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
             uint256 totalDSCMinted,
             uint256 collateralValueInUSD
         ) = _getAccountInformation(_user);
-        return (totalDSCMinted, collateralValueInUSD);
+
+        return _calculateHealthFactor(totalDSCMinted, collateralValueInUSD);
+    }
+
+    function _calculateHealthFactor(
+        uint256 totalDSCMinted,
+        uint256 collateralValueInUsd
+    ) internal pure returns (uint256) {
+        if (totalDSCMinted == 0) {
+            return type(uint256).max;
+        }
+
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd *
+            LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralAdjustedForThreshold * PRECISION) / totalDSCMinted;
     }
 
     // =============================================================
@@ -413,11 +440,19 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
     }
 
     function getUSDValue(
-        address _token,
+        address _collateralToken,
         uint256 _amount
     ) public view returns (uint256 usdValue) {
-        // This would integrate with Chainlink price feeds
-        // For now returning placeholder - needs actual price feed implementation
-        return _amount; // Placeholder
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            s_priceFeeds[_collateralToken]
+        );
+
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+
+        // The following code supposes the feed answers with 8 decimals place,
+        // which is true for ETH/USD, BTC/USD, etc,
+        // but may not be true for every single pair feed
+        // so fix it: TODO!
+        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * _amount) / 1e18;
     }
 }
