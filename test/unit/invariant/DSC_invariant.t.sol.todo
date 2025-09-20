@@ -8,6 +8,12 @@ import {DSC} from "../../../src/DSC.sol";
 import {DSCEngine} from "../../../src/DSCEngine.sol";
 import {DSC_Protocol_DeployScript} from "../../../script/DSC_Protocol_Deploy.s.sol";
 
+/**
+ * @title DSC_Invariant_Handler
+ * @author @vidalpaul
+ * @notice Handler contract for DSC invariant testing
+ * @dev Manages actor state and provides fuzzing functions for invariant tests
+ */
 contract DSC_Invariant_Handler is Test {
     DSC public dsc;
     DSCEngine public dscEngine;
@@ -174,6 +180,12 @@ contract DSC_Invariant_Handler is Test {
     }
 }
 
+/**
+ * @title DSC_Invariant_Test
+ * @author @vidalpaul
+ * @notice Comprehensive invariant test suite for DSC contract
+ * @dev Tests protocol invariants under random state changes
+ */
 contract DSC_Invariant_Test is StdInvariant, Test {
     DSC_Protocol_DeployScript public deployer;
     DSC public dsc;

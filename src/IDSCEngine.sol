@@ -22,13 +22,14 @@ interface IDSCEngine {
     error DSC_Engine_Collateral_CannotRemoveLastCollateral();
     error DSC_Engine_Collateral_HasActiveBalance();
 
-    erroe DSC_Engine_DSC_BurnFailed();
+    error DSC_Engine_DSC_BurnFailed();
     error DSC_Engine_DSC_MintFailed();
 
     error DSC_Engine_Health_UnhealthyPosition();
 
     error DSC_Engine_Liquidate_CannotLiquidateUserHoldingHealthyPosition();
     error DSC_Engine_Liquidate_CannotLiquidateIfItWorsensDebtorHealth();
+    error DSC_Engine_Liquidate_InsufficientCollateralToLiquidate();
 
     // =============================================================
     //                       TYPES
@@ -56,6 +57,12 @@ interface IDSCEngine {
     );
 
     event DSC_Engine_PriceFeed_Unset(address indexed collateralToken);
+
+    event DSC_Engine_Liquidate_DebtorLiquidated(
+        address indexed debtor,
+        address indexed liquidator,
+        address indexed collateralToken
+    );
 
     // =============================================================
     //                       FUNCTIONS SIGNATURES

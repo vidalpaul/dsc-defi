@@ -9,6 +9,12 @@ import {DSCEngine} from "../../src/DSCEngine.sol";
 
 import {DSC_Protocol_DeployScript} from "../../script/DSC_Protocol_Deploy.s.sol";
 
+/**
+ * @title DSC_Unit_Test
+ * @author @vidalpaul
+ * @notice Comprehensive unit test suite for DSC (Decentralized Stable Coin) contract
+ * @dev Tests all DSC functionality including minting, burning, transfers, and ownership
+ */
 contract DSC_Unit_Test is Test {
     DSC_Protocol_DeployScript public deployer;
     DSC public dsc;

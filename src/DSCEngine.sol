@@ -7,6 +7,7 @@ pragma solidity ^0.8.30;
 // DSC imports
 import {IDSCEngine} from "./IDSCEngine.sol";
 import {DSC} from "./DSC.sol";
+import {DSCLib} from "./DSCLib.sol";
 
 // OpenZeppelin imports
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -201,14 +202,19 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         uint256 _amountDSCToBurn
     ) external moreThanZero(_amountCollateral) {
         burnDSC(_amountDSCToBurn);
-        redeemCollateral(_collateralToken, _amountCollateral);
+        _redeemCollateral(
+            _collateralToken,
+            _amountCollateral,
+            msg.sender,
+            msg.sender
+        );
     }
 
     /**
      * @notice Liquidates an undercollateralized position
      * @dev Allows liquidators to repay debt and receive collateral at a discount
      * @param _collateralToken The address of the collateral token to liquidate
-     * @param _user The address of the user to liquidate
+     * @param _debtorToLiquidate The address of the user to liquidate
      * @param _debtToCover The amount of DSC debt to cover
      */
     function liquidate(
@@ -233,11 +239,17 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered +
             bonusCollateral;
 
+        // Check if debtor has enough collateral to cover the liquidation
+        require(
+            s_userToCollateralTokenToAmount[_debtorToLiquidate][_collateralToken] >= totalCollateralToRedeem,
+            DSC_Engine_Liquidate_InsufficientCollateralToLiquidate()
+        );
+
         _redeemCollateral(
-            _debtorToLiquidate,
-            msg.sender,
             _collateralToken,
-            totalCollateralToRedeem
+            totalCollateralToRedeem,
+            _debtorToLiquidate,
+            msg.sender
         );
 
         _burnDSC(_debtToCover, _debtorToLiquidate, msg.sender);
@@ -358,13 +370,12 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
             _amountCollateral
         );
 
-        bool success = IERC20(_collateralToken).transferFrom(
+        DSCLib.safeTransferFrom(
+            _collateralToken,
             msg.sender,
             address(this),
             _amountCollateral
         );
-
-        require(success == true, DSC_Engine_Collateral_TransferFailed());
     }
 
     /**
@@ -383,10 +394,10 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         nonReentrant
     {
         _redeemCollateral(
-            msg.sender,
-            msg.sender,
             _collateralToken,
-            _amountCollateral
+            _amountCollateral,
+            msg.sender,
+            msg.sender
         );
         _revertIfUnhealthy(msg.sender);
     }
@@ -491,13 +502,11 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         uint256 totalDSCMinted,
         uint256 collateralValueInUsd
     ) internal pure returns (uint256) {
-        if (totalDSCMinted == 0) {
-            return type(uint256).max;
-        }
-
-        uint256 collateralAdjustedForThreshold = (collateralValueInUsd *
-            LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        return (collateralAdjustedForThreshold * PRECISION) / totalDSCMinted;
+        return DSCLib.calculateHealthFactor(
+            totalDSCMinted,
+            collateralValueInUsd,
+            LIQUIDATION_THRESHOLD
+        );
     }
 
     // =============================================================
@@ -529,12 +538,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
             _amountCollateral
         );
 
-        bool success = IERC20(_collateralToken).transfer(
-            _to,
-            _amountCollateral
-        );
-
-        require(success, DSC_Engine_Collateral_TransferFailed());
+        DSCLib.safeTransfer(_collateralToken, _to, _amountCollateral);
     }
 
     /**
@@ -549,12 +553,16 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         address _onBehalfOf,
         address _dscFrom
     ) private {
-        s_userToDSCAmountMinted[_onBehalfOf] -= _amount;
-        bool success = i_dsc.transferFrom(_dscFrom, address(this), _amount);
+        s_userToDSCAmountMinted[_onBehalfOf] -= _amountDSCToBurn;
+        bool success = i_dsc.transferFrom(
+            _dscFrom,
+            address(this),
+            _amountDSCToBurn
+        );
 
         require(success, DSC_Engine_DSC_BurnFailed());
 
-        i_dsc.burn(_amount);
+        i_dsc.burn(_amountDSCToBurn);
     }
 
     // =============================================================
@@ -605,18 +613,10 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         address _collateralToken,
         uint256 _usdAmountInWei
     ) public view returns (uint256 _tokenAmount) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            s_priceFeeds[_collateralToken]
+        return DSCLib.getTokenAmountFromUSD(
+            s_priceFeeds[_collateralToken],
+            _usdAmountInWei
         );
-
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-
-        // The following code supposes the feed answers with 8 decimals place,
-        // which is true for ETH/USD, BTC/USD, etc,
-        // but may not be true for every single pair feed
-        // so fix it: TODO!
-        return (((_usdAmountInWei * PRECISION) / (uint256(price))) *
-            ADDITIONAL_FEED_PRECISION);
     }
 
     /**
@@ -630,17 +630,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         address _collateralToken,
         uint256 _amount
     ) public view returns (uint256 usdValue) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            s_priceFeeds[_collateralToken]
-        );
-
-        (, int256 price, , , ) = priceFeed.latestRoundData();
-
-        // The following code supposes the feed answers with 8 decimals place,
-        // which is true for ETH/USD, BTC/USD, etc,
-        // but may not be true for every single pair feed
-        // so fix it: TODO!
-        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * _amount) / 1e18;
+        return DSCLib.getUSDValue(s_priceFeeds[_collateralToken], _amount);
     }
 
     // =============================================================

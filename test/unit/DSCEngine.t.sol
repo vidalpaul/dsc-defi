@@ -11,6 +11,12 @@ import {ConfigHelper} from "../../script/Config_Helper.s.sol";
 import {DSC_Protocol_DeployScript} from "../../script/DSC_Protocol_Deploy.s.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
 
+/**
+ * @title DSCEngine_Unit_Test
+ * @author @vidalpaul
+ * @notice Unit test suite for DSCEngine contract
+ * @dev Tests DSC engine functionality including collateral management and liquidations
+ */
 contract DSCEngine_Unit_Test is Test {
     DSC_Protocol_DeployScript public deployer;
     ConfigHelper public config;
