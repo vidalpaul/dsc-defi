@@ -22,6 +22,8 @@ interface IDSCEngine {
     error DSC_Engine_Collateral_CannotRemoveLastCollateral();
     error DSC_Engine_Collateral_HasActiveBalance();
 
+    error DSC_Engine_DSC_MintFailed();
+
     error DSC_Engine_Health_UnhealthyPosition();
 
     // =============================================================
@@ -74,7 +76,7 @@ interface IDSCEngine {
      * @dev User must have sufficient collateral to maintain health factor
      * @param _amountDSCToMint The amount of DSC to mint
      */
-    function mintDSC(uint256 _amountDSCToMint) external;
+    function mintDSC(uint256 _amountDSCToMint) external returns (bool minted);
 
     /**
      * @notice Deposits collateral and mints DSC in a single transaction
