@@ -27,6 +27,9 @@ interface IDSCEngine {
 
     error DSC_Engine_Health_UnhealthyPosition();
 
+    error DSC_Engine_Liquidate_CannotLiquidateUserHoldingHealthyPosition();
+    error DSC_Engine_Liquidate_CannotLiquidateIfItWorsensDebtorHealth();
+
     // =============================================================
     //                       TYPES
     // =============================================================
@@ -46,9 +49,10 @@ interface IDSCEngine {
     );
 
     event DSC_Engine_Collateral_Redeemed(
-        address indexed user,
-        address indexed _collateralToken,
-        uint256 indexed _amountCollateral
+        address indexed redeemedFrom,
+        address indexed redeemedTo,
+        address indexed collateralToken,
+        uint256 amountCollateral
     );
 
     event DSC_Engine_PriceFeed_Unset(address indexed collateralToken);
