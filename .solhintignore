@@ -1,0 +1,11 @@
+node_modules/
+lib/
+out/
+cache/
+artifacts/
+coverage/
+.nyc_output/
+test/mocks/
+script/
+*.t.sol
+*.s.sol

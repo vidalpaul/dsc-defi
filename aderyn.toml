@@ -1,0 +1,124 @@
+[global]
+src = "src"
+exclude = ["test", "script", "lib"]
+include_modules = ["all"]
+
+[output]
+report_format = "json"
+output_file = "aderyn-report.json"
+
+[rules]
+# Enable all security rules
+high_severity = true
+medium_severity = true
+low_severity = true
+informational = true
+
+# Specific rule configurations
+[rules.arbitrary_jump]
+enabled = true
+
+[rules.assert_state_change]
+enabled = true
+
+[rules.boolean_equality]
+enabled = true
+
+[rules.centralization_risk]
+enabled = true
+
+[rules.constant_function_changing_state]
+enabled = true
+
+[rules.contracts_with_todos]
+enabled = true
+
+[rules.dead_code]
+enabled = true
+
+[rules.deprecated_oz_functions]
+enabled = true
+
+[rules.divide_before_multiply]
+enabled = true
+
+[rules.dos_unbounded_operation]
+enabled = true
+
+[rules.function_init_state_vars]
+enabled = true
+
+[rules.incorrect_shift]
+enabled = true
+
+[rules.incorrect_use_of_ecrecover]
+enabled = true
+
+[rules.large_literal_value]
+enabled = true
+
+[rules.missing_inheritance]
+enabled = true
+
+[rules.multiple_placeholders]
+enabled = true
+
+[rules.named_return_variable_unused]
+enabled = true
+
+[rules.nested_struct_in_mapping]
+enabled = true
+
+[rules.non_reentrant_before_others]
+enabled = true
+
+[rules.out_of_order_retryable]
+enabled = true
+
+[rules.public_variable_read_in_external_context]
+enabled = true
+
+[rules.redundant_statements]
+enabled = true
+
+[rules.require_without_string]
+enabled = true
+
+[rules.return_bomb]
+enabled = true
+
+[rules.state_variable_could_be_declared_constant]
+enabled = true
+
+[rules.unindexed_events]
+enabled = true
+
+[rules.unnecessary_struct]
+enabled = true
+
+[rules.unsafe_oz_erc721_mint]
+enabled = true
+
+[rules.unused_import]
+enabled = true
+
+[rules.unused_state_variable]
+enabled = true
+
+[rules.useless_error]
+enabled = true
+
+[rules.useless_internal_function]
+enabled = true
+
+[rules.useless_modifier]
+enabled = true
+
+[rules.useless_public_function]
+enabled = true
+
+[rules.weak_randomness]
+enabled = true
+
+[rules.zero_address_check]
+enabled = true

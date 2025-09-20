@@ -1,0 +1,64 @@
+# Echidna configuration for DSC Protocol
+testMode: property
+testLimit: 50000
+timeout: 3600
+shrinkLimit: 5000
+seqLen: 100
+contractAddr: "0x00a329c0648769A73afAc7F9381E08FB43dBEA72"
+
+# Coverage options
+coverage: true
+corpusDir: "corpus"
+
+# Transaction options
+gasLimit: 12500000
+gasPrice: 20000000000
+
+# RPC options (for mainnet forking if needed)
+# rpcUrl: "https://mainnet.infura.io/v3/YOUR_INFURA_KEY"
+# rpcBlock: "latest"
+
+# Fuzzing configuration
+mutConsts: []
+probValues:
+  - [1, 1]     # integers
+  - [1, 1]     # addresses
+  - [1, 1]     # booleans
+  - [1, 1]     # bytes
+
+# Solver configuration
+solver: "z3"
+smtTimeout: 60000
+
+# Source directories
+src: "src"
+testSrc: "test/echidna"
+
+# Compilation options
+solcVer: "0.8.30"
+solcLibs: ["lib"]
+solcArgs:
+  - "--optimize"
+  - "--optimize-runs=200"
+  - "--via-ir"
+
+# Output configuration
+format: "json"
+quiet: false
+dashboard: false
+
+# Property testing configuration
+checkAsserts: true
+testDestruct: false
+
+# Advanced options
+workers: 1
+seed: null
+dictFreq: 0.40
+corpusDir: "echidna-corpus"
+
+# Multi-ABI support
+allContracts: false
+deployer: "0x41414141414141414141414141414141414141"
+sender: ["0x10000", "0x20000", "0x30000"]
+psender: "0x10000"
