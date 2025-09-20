@@ -12,10 +12,17 @@ interface IDSCEngine {
     //                       ERRORS
     // =============================================================
     error DSC_Engine_Uint256_MustBeGreaterThaZero();
-    error DSC_Engine_Collateral_CollateralNotAllowed();
     error DSC_Engine_Address_CannotBeZero();
+
     error DSC_Engine_Array_LengthsMustMatch();
     error DSC_Engine_Array_InvalidLength();
+
+    error DSC_Engine_Collateral_CollateralNotAllowed();
+    error DSC_Engine_Collateral_TransferFailed();
+    error DSC_Engine_Collateral_CannotRemoveLastCollateral();
+    error DSC_Engine_Collateral_HasActiveBalance();
+
+    error DSC_Engine_Health_UnhealthyPosition();
 
     // =============================================================
     //                       TYPES
@@ -24,10 +31,18 @@ interface IDSCEngine {
     // =============================================================
     //                       EVENTS
     // =============================================================
-    event DSC_Engine_PriceFeedSet(
+    event DSC_Engine_PriceFeed_Set(
         address indexed collateralToken,
         address indexed priceFeed
     );
+
+    event DSC_Engine_Collateral_Deposited(
+        address indexed user,
+        address indexed collateralToken,
+        uint256 indexed amountCollateral
+    );
+
+    event DSC_Engine_PriceFeed_Unset(address indexed collateralToken);
 
     // =============================================================
     //                       FUNCTIONS SIGNATURES
@@ -38,7 +53,7 @@ interface IDSCEngine {
      * @param _collateralToken The address of the ERC20 token to deposit as collateral
      * @param _amountCollateral The amount of collateral to deposit
      */
-    function safedDepositCollateral(
+    function depositCollateral(
         address _collateralToken,
         uint256 _amountCollateral
     ) external;
@@ -71,6 +86,8 @@ interface IDSCEngine {
     function depositCollateralAndMintDSC(
         address _collateralToken,
         uint256 _amountCollateral,
+        // solhint-disable-next-line func-name-mixedcase
+        // forge-lint: disable-next-item
         uint256 _amountDSCToMint
     ) external;
 
@@ -115,15 +132,15 @@ interface IDSCEngine {
      */
     function getHealthFactor(address _user) external view returns (uint256);
 
-    function safeBatchSetPriceFeeds(
+    function batchSetPriceFeeds(
         address[] memory _collateralTokens,
         address[] memory _priceFeeds
     ) external;
 
-    function safeSetPriceFeed(
+    function setPriceFeed(
         address _collateralToken,
         address _priceFeed
     ) external;
 
-    function safeUnsetPriceFeed(address _collateralToken) external;
+    function unsetPriceFeed(address _collateralToken) external;
 }

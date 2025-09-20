@@ -4,8 +4,16 @@ pragma solidity ^0.8.30;
 // =============================================================
 //                       IMPORTS
 // =============================================================
+// DSC imports
 import {IDSCEngine} from "./IDSCEngine.sol";
 import {DSC} from "./DSC.sol";
+
+// OpenZeppelin imports
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+// Chainlink imports
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 /**
  * @title DSCEngine
@@ -17,12 +25,12 @@ import {DSC} from "./DSC.sol";
  * Users can:
  * - Deposit collateral (supported ERC20 tokens)
  * - Mint DSC stablecoins against their collateral
- * - Redeem collateral by burning DSC
+ * - Redeem collateral by burning DS
  * - Liquidate undercollateralized positions
  *
  * @custom:security-contact security@dscprotocol.com
  */
-contract DSCEngine is IDSCEngine {
+contract DSCEngine is IDSCEngine, ReentrancyGuard {
     // =============================================================
     //                       ERRORS
     // =============================================================
@@ -38,10 +46,19 @@ contract DSCEngine is IDSCEngine {
     // =============================================================
 
     uint256 private constant MAX_SET_PRICE_FEEDS_ARRAY_LENGTH = 3;
+    uint256 private constant MIN_COLLATERAL_TOKENS = 1;
+    uint256 private constant MIN_HEALTH_THRESHOLD = 1;
 
-    DSC private immutable i_dsc;
+    uint256 private s_activeCollateralCount;
+    address[] private s_collateralTokens;
 
     mapping(address collateralToken => address priceFeed) private s_priceFeeds;
+    mapping(address user => mapping(address collateralToken => uint256 amount))
+        private s_userToCollateralTokenToAmount;
+    mapping(address user => uint256 dscAmountMinted)
+        private s_userToDSCAmountMinted;
+
+    DSC private immutable i_dsc;
 
     // =============================================================
     //                       EVENTS
@@ -96,6 +113,29 @@ contract DSCEngine is IDSCEngine {
         _;
     }
 
+    /**
+     * @notice Ensures minimum collateral tokens remain active
+     */
+    modifier maintainsMinimumCollateral() {
+        require(
+            s_activeCollateralCount > MIN_COLLATERAL_TOKENS,
+            DSC_Engine_Collateral_CannotRemoveLastCollateral()
+        );
+        _;
+    }
+
+    /**
+     * @notice Ensures no active collateral balance exists for token
+     * @param _collateralToken The collateral token to check
+     */
+    modifier noActiveBalance(address _collateralToken) {
+        require(
+            IERC20(_collateralToken).balanceOf(address(this)) == 0,
+            DSC_Engine_Collateral_HasActiveBalance()
+        );
+        _;
+    }
+
     // =============================================================
     //                       CONSTRUCTOR
     // =============================================================
@@ -109,7 +149,7 @@ contract DSCEngine is IDSCEngine {
         address _dscAddress
     ) addressIsNotZero(_dscAddress) {
         i_dsc = DSC(_dscAddress);
-        safeBatchSetPriceFeeds(_collateralTokens, _priceFeeds);
+        batchSetPriceFeeds(_collateralTokens, _priceFeeds);
     }
 
     // =============================================================
@@ -121,11 +161,35 @@ contract DSCEngine is IDSCEngine {
      * @dev Transfers collateral from the user to the protocol
      * @param _collateralToken The address of the ERC20 token to deposit as collateral
      * @param _amountCollateral The amount of collateral to deposit
+     * @notice Follows CEI
      */
-    function safedDepositCollateral(
+    function depositCollateral(
         address _collateralToken,
         uint256 _amountCollateral
-    ) external moreThanZero(_amountCollateral) {}
+    )
+        external
+        moreThanZero(_amountCollateral)
+        collateralIsMapped(_collateralToken)
+        nonReentrant
+    {
+        s_userToCollateralTokenToAmount[msg.sender][
+            _collateralToken
+        ] += _amountCollateral;
+
+        emit DSC_Engine_Collateral_Deposited(
+            msg.sender,
+            _collateralToken,
+            _amountCollateral
+        );
+
+        bool success = IERC20(_collateralToken).transferFrom(
+            msg.sender,
+            address(this),
+            _amountCollateral
+        );
+
+        require(success == true, DSC_Engine_Collateral_TransferFailed());
+    }
 
     /**
      * @notice Redeems collateral from the protocol
@@ -143,7 +207,17 @@ contract DSCEngine is IDSCEngine {
      * @dev User must have sufficient collateral to maintain health factor
      * @param _amountDSCToMint The amount of DSC to mint
      */
-    function mintDSC(uint256 _amountDSCToMint) external {}
+
+    function mintDSC(
+        uint256 _amountDSCToMint
+    ) external moreThanZero(_amountDSCToMint) nonReentrant {
+        s_userToDSCAmountMinted[msg.sender] += _amountDSCToMint;
+
+        // Has to be an internal function, instead of a modifier, because
+        // user's health should be checked after the balance update,
+        // allowing the user to save their position
+        _revertIfUnhealthy(msg.sender);
+    }
 
     /**
      * @notice Deposits collateral and mints DSC in a single transaction
@@ -152,6 +226,7 @@ contract DSCEngine is IDSCEngine {
      * @param _amountCollateral The amount of collateral to deposit
      * @param _amountDSCToMint The amount of DSC to mint
      */
+
     function depositCollateralAndMintDSC(
         address _collateralToken,
         uint256 _amountCollateral,
@@ -191,13 +266,116 @@ contract DSCEngine is IDSCEngine {
         uint256 _debtToCover
     ) external {}
 
+    /**
+     * @notice Sets a price feed for a collateral token
+     * @dev Validates addresses and emits PriceFeedSet event
+     * @param _collateralToken The collateral token address
+     * @param _priceFeed The price feed address
+     */
+    function setPriceFeed(
+        address _collateralToken,
+        address _priceFeed
+    )
+        public
+        override
+        addressIsNotZero(_collateralToken)
+        addressIsNotZero(_priceFeed)
+    {
+        // If this is a new collateral token, add to array and increment counter
+        if (s_priceFeeds[_collateralToken] == address(0)) {
+            s_collateralTokens.push(_collateralToken);
+            s_activeCollateralCount++;
+        }
+
+        s_priceFeeds[_collateralToken] = _priceFeed;
+        emit DSC_Engine_PriceFeed_Set(_collateralToken, _priceFeed);
+    }
+
+    /**
+     * @notice Removes a price feed for a collateral token
+     * @dev Ensures minimum collateral tokens remain and no active balance exists
+     * @param _collateralToken The collateral token to remove
+     */
+    function unsetPriceFeed(
+        address _collateralToken
+    )
+        external
+        override
+        collateralIsMapped(_collateralToken)
+        maintainsMinimumCollateral
+        noActiveBalance(_collateralToken)
+    {
+        s_priceFeeds[_collateralToken] = address(0);
+        s_activeCollateralCount--;
+
+        // Remove from array
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
+            if (s_collateralTokens[i] == _collateralToken) {
+                s_collateralTokens[i] = s_collateralTokens[
+                    s_collateralTokens.length - 1
+                ];
+                s_collateralTokens.pop();
+                break;
+            }
+        }
+
+        emit DSC_Engine_PriceFeed_Unset(_collateralToken);
+    }
+
     // =============================================================
     //                       PUBLIC FUNCTIONS
     // =============================================================
 
+    /**
+     * @notice Batch sets price feeds for multiple collateral tokens
+     * @dev Validates array lengths and calls safeSetPriceFeed for each pair
+     * @param _collateralTokens Array of collateral token addresses
+     * @param _priceFeeds Array of price feed addresses
+     */
+    function batchSetPriceFeeds(
+        address[] memory _collateralTokens,
+        address[] memory _priceFeeds
+    )
+        public
+        override
+        validArrayLength(_collateralTokens.length)
+        matchingArrayLengths(_collateralTokens.length, _priceFeeds.length)
+    {
+        for (uint256 i = 0; i < _collateralTokens.length; i++) {
+            setPriceFeed(_collateralTokens[i], _priceFeeds[i]);
+        }
+    }
+
     // =============================================================
     //                       INTERNAL FUNCTIONS
     // =============================================================
+    function _getAccountInformation(
+        address _user
+    )
+        internal
+        view
+        returns (uint256 totalDSCMinted, uint256 collateralValueInUSD)
+    {
+        totalDSCMinted = s_userToDSCAmountMinted[_user];
+        collateralValueInUSD = getAccountCollateralValue(_user);
+    }
+
+    function _revertIfUnhealthy(address _user) internal view {
+        require(
+            _healthFactor(_user) >= MIN_HEALTH_THRESHOLD,
+            DSC_Engine_Health_UnhealthyPosition()
+        );
+    }
+
+    function _healthFactor(
+        address _user
+    ) internal view returns (uint256 userHealthFactor) {
+        (
+            uint256 totalDSCMinted,
+            uint256 collateralValueInUSD
+        ) = _getAccountInformation(_user);
+        return (totalDSCMinted, collateralValueInUSD);
+    }
 
     // =============================================================
     //                       PRIVATE FUNCTIONS
@@ -213,46 +391,33 @@ contract DSCEngine is IDSCEngine {
      * @param _user The address of the user to check
      * @return healthFactor The calculated health factor (should be > 1e18 to avoid liquidation)
      */
-    function getHealthFactor(address _user) external view returns (uint256) {}
+    function getHealthFactor(
+        address _user
+    ) public view returns (uint256 healthFactor) {
+        return _healthFactor(_user);
+    }
 
-    /**
-     * @notice Batch sets price feeds for multiple collateral tokens
-     * @dev Validates array lengths and calls safeSetPriceFeed for each pair
-     * @param _collateralTokens Array of collateral token addresses
-     * @param _priceFeeds Array of price feed addresses
-     */
-    function safeBatchSetPriceFeeds(
-        address[] memory _collateralTokens,
-        address[] memory _priceFeeds
-    )
-        public
-        override
-        validArrayLength(_collateralTokens.length)
-        matchingArrayLengths(_collateralTokens.length, _priceFeeds.length)
-    {
-        for (uint256 i = 0; i < _collateralTokens.length; i++) {
-            safeSetPriceFeed(_collateralTokens[i], _priceFeeds[i]);
+    function getAccountCollateralValue(
+        address _user
+    ) public view returns (uint256 totalCollateralValueInUSD) {
+        totalCollateralValueInUSD = 0;
+
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
+            address token = s_collateralTokens[i];
+            uint256 amount = s_userToCollateralTokenToAmount[_user][token];
+
+            if (amount > 0) {
+                totalCollateralValueInUSD += getUSDValue(token, amount);
+            }
         }
     }
 
-    /**
-     * @notice Sets a price feed for a collateral token
-     * @dev Validates addresses and emits PriceFeedSet event
-     * @param _collateralToken The collateral token address
-     * @param _priceFeed The price feed address
-     */
-    function safeSetPriceFeed(
-        address _collateralToken,
-        address _priceFeed
-    )
-        public
-        override
-        addressIsNotZero(_collateralToken)
-        addressIsNotZero(_priceFeed)
-    {
-        s_priceFeeds[_collateralToken] = _priceFeed;
-        emit DSC_Engine_PriceFeedSet(_collateralToken, _priceFeed);
+    function getUSDValue(
+        address _token,
+        uint256 _amount
+    ) public view returns (uint256 usdValue) {
+        // This would integrate with Chainlink price feeds
+        // For now returning placeholder - needs actual price feed implementation
+        return _amount; // Placeholder
     }
-
-    function safeUnsetPriceFeed(address _collateralToken) external override {}
 }
