@@ -317,10 +317,11 @@ contract MockV3Aggregator_Unit_Test is Test {
         uint256 startTime = block.timestamp;
 
         for (uint256 i = 1; i <= 3; i++) {
-            vm.warp(startTime + i * 100);
+            uint256 targetTime = startTime + i * 100;
+            vm.warp(targetTime);
             aggregator.updateAnswer(int256(1000e8 + i * 100e8));
 
-            assertEq(aggregator.latestTimestamp(), startTime + i * 100, "Timestamp should progress correctly");
+            assertEq(aggregator.latestTimestamp(), targetTime, "Timestamp should progress correctly");
         }
     }
 
