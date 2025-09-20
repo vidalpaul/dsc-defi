@@ -1,0 +1,423 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.30;
+
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+import {DSC} from "../../../src/DSC.sol";
+import {DSCEngine} from "../../../src/DSCEngine.sol";
+import {DSC_Protocol_DeployScript} from "../../../script/DSC_Protocol_Deploy.s.sol";
+
+contract DSC_Fuzzing_Test is Test {
+    DSC_Protocol_DeployScript public deployer;
+    DSC public dsc;
+    DSCEngine public dscEngine;
+    
+    address public constant USER_ALICE = address(2);
+    address public constant USER_BOB = address(3);
+    
+    uint256 public constant MAX_MINT_AMOUNT = type(uint128).max; // Reasonable upper bound
+    
+    function setUp() public {
+        deployer = new DSC_Protocol_DeployScript();
+        deployer.setTestMode(true);
+        (dsc, dscEngine, ) = deployer.run();
+    }
+
+    ////////////////////////////////
+    // Mint Function Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_Mint_ValidAmounts(uint256 amount) public {
+        // Bound amount to reasonable range
+        amount = bound(amount, 1, MAX_MINT_AMOUNT);
+        
+        vm.prank(address(dscEngine));
+        bool success = dsc.mint(USER_ALICE, amount);
+        
+        assertTrue(success);
+        assertEq(dsc.balanceOf(USER_ALICE), amount);
+        assertEq(dsc.totalSupply(), amount);
+    }
+
+    function testFuzz_Mint_MultipleRecipients(
+        address recipient1,
+        address recipient2,
+        uint256 amount1,
+        uint256 amount2
+    ) public {
+        // Ensure recipients are not zero address
+        vm.assume(recipient1 != address(0));
+        vm.assume(recipient2 != address(0));
+        vm.assume(recipient1 != recipient2);
+        
+        // Bound amounts
+        amount1 = bound(amount1, 1, MAX_MINT_AMOUNT / 2);
+        amount2 = bound(amount2, 1, MAX_MINT_AMOUNT / 2);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(recipient1, amount1);
+        dsc.mint(recipient2, amount2);
+        vm.stopPrank();
+        
+        assertEq(dsc.balanceOf(recipient1), amount1);
+        assertEq(dsc.balanceOf(recipient2), amount2);
+        assertEq(dsc.totalSupply(), amount1 + amount2);
+    }
+
+    function testFuzz_Mint_SameRecipientMultipleTimes(
+        address recipient,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 amount3
+    ) public {
+        vm.assume(recipient != address(0));
+        
+        // Bound amounts to prevent overflow
+        amount1 = bound(amount1, 1, MAX_MINT_AMOUNT / 3);
+        amount2 = bound(amount2, 1, MAX_MINT_AMOUNT / 3);
+        amount3 = bound(amount3, 1, MAX_MINT_AMOUNT / 3);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(recipient, amount1);
+        dsc.mint(recipient, amount2);
+        dsc.mint(recipient, amount3);
+        vm.stopPrank();
+        
+        uint256 expectedTotal = amount1 + amount2 + amount3;
+        assertEq(dsc.balanceOf(recipient), expectedTotal);
+        assertEq(dsc.totalSupply(), expectedTotal);
+    }
+
+    function testFuzz_Mint_RevertOnZeroAddress(uint256 amount) public {
+        amount = bound(amount, 1, MAX_MINT_AMOUNT);
+        
+        vm.expectRevert(DSC.DSC_Mint_RecipientCannotBeZeroAddress.selector);
+        vm.prank(address(dscEngine));
+        dsc.mint(address(0), amount);
+    }
+
+    function testFuzz_Mint_RevertOnNonOwner(address caller, address recipient, uint256 amount) public {
+        vm.assume(caller != address(dscEngine));
+        vm.assume(recipient != address(0));
+        amount = bound(amount, 1, MAX_MINT_AMOUNT);
+        
+        vm.expectRevert();
+        vm.prank(caller);
+        dsc.mint(recipient, amount);
+    }
+
+    ////////////////////////////////
+    // Burn Function Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_Burn_ValidAmounts(uint256 mintAmount, uint256 burnAmount) public {
+        mintAmount = bound(mintAmount, 2, MAX_MINT_AMOUNT);
+        burnAmount = bound(burnAmount, 1, mintAmount);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(address(dscEngine), mintAmount);
+        dsc.burn(burnAmount);
+        vm.stopPrank();
+        
+        assertEq(dsc.balanceOf(address(dscEngine)), mintAmount - burnAmount);
+        assertEq(dsc.totalSupply(), mintAmount - burnAmount);
+    }
+
+    function testFuzz_Burn_FullBalance(uint256 amount) public {
+        amount = bound(amount, 1, MAX_MINT_AMOUNT);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(address(dscEngine), amount);
+        dsc.burn(amount);
+        vm.stopPrank();
+        
+        assertEq(dsc.balanceOf(address(dscEngine)), 0);
+        assertEq(dsc.totalSupply(), 0);
+    }
+
+    function testFuzz_Burn_MultipleBurns(
+        uint256 mintAmount,
+        uint256 burn1,
+        uint256 burn2
+    ) public {
+        mintAmount = bound(mintAmount, 3, MAX_MINT_AMOUNT);
+        burn1 = bound(burn1, 1, mintAmount / 2);
+        burn2 = bound(burn2, 1, mintAmount - burn1);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(address(dscEngine), mintAmount);
+        dsc.burn(burn1);
+        dsc.burn(burn2);
+        vm.stopPrank();
+        
+        uint256 expectedRemaining = mintAmount - burn1 - burn2;
+        assertEq(dsc.balanceOf(address(dscEngine)), expectedRemaining);
+        assertEq(dsc.totalSupply(), expectedRemaining);
+    }
+
+    function testFuzz_Burn_RevertOnExceedsBalance(uint256 mintAmount, uint256 burnAmount) public {
+        mintAmount = bound(mintAmount, 1, MAX_MINT_AMOUNT - 1);
+        burnAmount = bound(burnAmount, mintAmount + 1, MAX_MINT_AMOUNT);
+        
+        vm.startPrank(address(dscEngine));
+        dsc.mint(address(dscEngine), mintAmount);
+        
+        vm.expectRevert(DSC.DSC_Burn_AmountCannotBeMoreThanBalance.selector);
+        dsc.burn(burnAmount);
+        vm.stopPrank();
+    }
+
+    function testFuzz_Burn_RevertOnNonOwner(address caller, uint256 amount) public {
+        vm.assume(caller != address(dscEngine));
+        amount = bound(amount, 1, MAX_MINT_AMOUNT);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(caller, amount);
+        
+        vm.expectRevert();
+        vm.prank(caller);
+        dsc.burn(amount);
+    }
+
+    ////////////////////////////////
+    // Transfer Function Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_Transfer_ValidAmounts(
+        address recipient,
+        uint256 mintAmount,
+        uint256 transferAmount
+    ) public {
+        vm.assume(recipient != address(0));
+        vm.assume(recipient != USER_ALICE);
+        
+        mintAmount = bound(mintAmount, 2, MAX_MINT_AMOUNT);
+        transferAmount = bound(transferAmount, 1, mintAmount);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.prank(USER_ALICE);
+        bool success = dsc.transfer(recipient, transferAmount);
+        
+        assertTrue(success);
+        assertEq(dsc.balanceOf(USER_ALICE), mintAmount - transferAmount);
+        assertEq(dsc.balanceOf(recipient), transferAmount);
+        assertEq(dsc.totalSupply(), mintAmount);
+    }
+
+    function testFuzz_Transfer_MultipleTransfers(
+        uint256 mintAmount,
+        uint256 transfer1,
+        uint256 transfer2
+    ) public {
+        mintAmount = bound(mintAmount, 3, MAX_MINT_AMOUNT);
+        transfer1 = bound(transfer1, 1, mintAmount / 2);
+        transfer2 = bound(transfer2, 1, mintAmount - transfer1);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.startPrank(USER_ALICE);
+        dsc.transfer(USER_BOB, transfer1);
+        dsc.transfer(address(dscEngine), transfer2);
+        vm.stopPrank();
+        
+        uint256 expectedAliceBalance = mintAmount - transfer1 - transfer2;
+        assertEq(dsc.balanceOf(USER_ALICE), expectedAliceBalance);
+        assertEq(dsc.balanceOf(USER_BOB), transfer1);
+        assertEq(dsc.balanceOf(address(dscEngine)), transfer2);
+        assertEq(dsc.totalSupply(), mintAmount);
+    }
+
+    function testFuzz_Transfer_RevertOnInsufficientBalance(
+        uint256 mintAmount,
+        uint256 transferAmount
+    ) public {
+        mintAmount = bound(mintAmount, 1, MAX_MINT_AMOUNT - 1);
+        transferAmount = bound(transferAmount, mintAmount + 1, MAX_MINT_AMOUNT);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.expectRevert();
+        vm.prank(USER_ALICE);
+        dsc.transfer(USER_BOB, transferAmount);
+    }
+
+    ////////////////////////////////
+    // Approve and TransferFrom Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_ApproveAndTransferFrom(
+        uint256 mintAmount,
+        uint256 approveAmount,
+        uint256 transferAmount
+    ) public {
+        mintAmount = bound(mintAmount, 2, MAX_MINT_AMOUNT);
+        approveAmount = bound(approveAmount, 1, MAX_MINT_AMOUNT);
+        transferAmount = bound(transferAmount, 1, min(mintAmount, approveAmount));
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.prank(USER_ALICE);
+        dsc.approve(USER_BOB, approveAmount);
+        
+        vm.prank(USER_BOB);
+        bool success = dsc.transferFrom(USER_ALICE, address(dscEngine), transferAmount);
+        
+        assertTrue(success);
+        assertEq(dsc.balanceOf(USER_ALICE), mintAmount - transferAmount);
+        assertEq(dsc.balanceOf(address(dscEngine)), transferAmount);
+        assertEq(dsc.allowance(USER_ALICE, USER_BOB), approveAmount - transferAmount);
+        assertEq(dsc.totalSupply(), mintAmount);
+    }
+
+    function testFuzz_TransferFrom_RevertOnInsufficientAllowance(
+        uint256 mintAmount,
+        uint256 approveAmount,
+        uint256 transferAmount
+    ) public {
+        mintAmount = bound(mintAmount, 1, MAX_MINT_AMOUNT);
+        approveAmount = bound(approveAmount, 1, MAX_MINT_AMOUNT - 1);
+        transferAmount = bound(transferAmount, approveAmount + 1, MAX_MINT_AMOUNT);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.prank(USER_ALICE);
+        dsc.approve(USER_BOB, approveAmount);
+        
+        vm.expectRevert();
+        vm.prank(USER_BOB);
+        dsc.transferFrom(USER_ALICE, address(dscEngine), transferAmount);
+    }
+
+    ////////////////////////////////
+    // BurnFrom Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_BurnFrom_ValidAmounts(
+        uint256 mintAmount,
+        uint256 approveAmount,
+        uint256 burnAmount
+    ) public {
+        mintAmount = bound(mintAmount, 2, MAX_MINT_AMOUNT);
+        approveAmount = bound(approveAmount, 1, MAX_MINT_AMOUNT);
+        burnAmount = bound(burnAmount, 1, min(mintAmount, approveAmount));
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.prank(USER_ALICE);
+        dsc.approve(USER_BOB, approveAmount);
+        
+        vm.prank(USER_BOB);
+        dsc.burnFrom(USER_ALICE, burnAmount);
+        
+        assertEq(dsc.balanceOf(USER_ALICE), mintAmount - burnAmount);
+        assertEq(dsc.totalSupply(), mintAmount - burnAmount);
+        assertEq(dsc.allowance(USER_ALICE, USER_BOB), approveAmount - burnAmount);
+    }
+
+    function testFuzz_BurnFrom_RevertOnInsufficientAllowance(
+        uint256 mintAmount,
+        uint256 approveAmount,
+        uint256 burnAmount
+    ) public {
+        mintAmount = bound(mintAmount, 1, MAX_MINT_AMOUNT);
+        approveAmount = bound(approveAmount, 1, MAX_MINT_AMOUNT - 1);
+        burnAmount = bound(burnAmount, approveAmount + 1, MAX_MINT_AMOUNT);
+        
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        vm.prank(USER_ALICE);
+        dsc.approve(USER_BOB, approveAmount);
+        
+        vm.expectRevert();
+        vm.prank(USER_BOB);
+        dsc.burnFrom(USER_ALICE, burnAmount);
+    }
+
+    ////////////////////////////////
+    // Complex Scenario Fuzzing Tests
+    ////////////////////////////////
+
+    function testFuzz_MintTransferBurnCycle(
+        uint256 mintAmount,
+        uint256 transferAmount,
+        uint256 burnAmount
+    ) public {
+        mintAmount = bound(mintAmount, 10, MAX_MINT_AMOUNT);
+        transferAmount = bound(transferAmount, 1, mintAmount / 2);
+        burnAmount = bound(burnAmount, 1, mintAmount - transferAmount);
+        
+        // Mint to Alice
+        vm.prank(address(dscEngine));
+        dsc.mint(USER_ALICE, mintAmount);
+        
+        // Alice transfers to Bob
+        vm.prank(USER_ALICE);
+        dsc.transfer(USER_BOB, transferAmount);
+        
+        // Alice approves engine to burn from her account
+        vm.prank(USER_ALICE);
+        dsc.approve(address(dscEngine), burnAmount);
+        
+        // Engine burns from Alice
+        vm.prank(address(dscEngine));
+        dsc.burnFrom(USER_ALICE, burnAmount);
+        
+        uint256 expectedAliceBalance = mintAmount - transferAmount - burnAmount;
+        assertEq(dsc.balanceOf(USER_ALICE), expectedAliceBalance);
+        assertEq(dsc.balanceOf(USER_BOB), transferAmount);
+        assertEq(dsc.totalSupply(), mintAmount - burnAmount);
+    }
+
+    function testFuzz_MultipleUsersComplex(
+        uint256 amount1,
+        uint256 amount2,
+        uint256 amount3,
+        uint256 transferAB,
+        uint256 transferBC
+    ) public {
+        // Bound amounts
+        amount1 = bound(amount1, 10, MAX_MINT_AMOUNT / 3);
+        amount2 = bound(amount2, 10, MAX_MINT_AMOUNT / 3);
+        amount3 = bound(amount3, 10, MAX_MINT_AMOUNT / 3);
+        transferAB = bound(transferAB, 1, amount1 / 2);
+        transferBC = bound(transferBC, 1, amount2 / 2);
+        
+        address userC = address(4);
+        
+        // Mint to all users
+        vm.startPrank(address(dscEngine));
+        dsc.mint(USER_ALICE, amount1);
+        dsc.mint(USER_BOB, amount2);
+        dsc.mint(userC, amount3);
+        vm.stopPrank();
+        
+        // Transfers
+        vm.prank(USER_ALICE);
+        dsc.transfer(USER_BOB, transferAB);
+        
+        vm.prank(USER_BOB);
+        dsc.transfer(userC, transferBC);
+        
+        // Verify final balances
+        assertEq(dsc.balanceOf(USER_ALICE), amount1 - transferAB);
+        assertEq(dsc.balanceOf(USER_BOB), amount2 + transferAB - transferBC);
+        assertEq(dsc.balanceOf(userC), amount3 + transferBC);
+        assertEq(dsc.totalSupply(), amount1 + amount2 + amount3);
+    }
+
+    ////////////////////////////////
+    // Helper Functions
+    ////////////////////////////////
+
+    function min(uint256 a, uint256 b) private pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}

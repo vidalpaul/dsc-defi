@@ -14,11 +14,19 @@ contract DSC_Protocol_DeployScript is Script {
     DSCEngine public dscEngine;
 
     ConfigHelper public configHelper;
+    
+    bool public isTestMode;
 
     function setUp() public {}
+    
+    function setTestMode(bool _isTestMode) external {
+        isTestMode = _isTestMode;
+    }
 
-    function run() external returns (DSC, DSCEngine) {
-        vm.startBroadcast();
+    function run() external returns (DSC, DSCEngine, ConfigHelper) {
+        if (!isTestMode) {
+            vm.startBroadcast();
+        }
 
         configHelper = new ConfigHelper();
 
@@ -26,25 +34,21 @@ contract DSC_Protocol_DeployScript is Script {
             address wethUsdPriceFeed,
             address wbtcUsdPriceFeed,
             address wsolUsdPriceFeed,
-            address wadaUsdPriceFeed,
             address weth,
             address wbtc,
             address wsol,
-            // address wada,
             uint256 deployerKey
         ) = configHelper.activeNetworkConfig();
 
-        address[] memory tokenAddresses = new address[](4);
+        address[] memory tokenAddresses = new address[](3);
         tokenAddresses[0] = weth;
         tokenAddresses[1] = wbtc;
         tokenAddresses[2] = wsol;
-        // tokenAddresses[3] = wada;
 
-        address[] memory priceFeedAddresses = new address[](4);
+        address[] memory priceFeedAddresses = new address[](3);
         priceFeedAddresses[0] = wethUsdPriceFeed;
         priceFeedAddresses[1] = wbtcUsdPriceFeed;
         priceFeedAddresses[2] = wsolUsdPriceFeed;
-        // priceFeedAddresses[3] = wadaUsdPriceFeed;
 
         dsc = new DSC();
 
@@ -54,10 +58,12 @@ contract DSC_Protocol_DeployScript is Script {
             address(dsc)
         );
 
-        dsc.transferownership(address(dscEngine));
+        dsc.transferOwnership(address(dscEngine));
 
-        vm.stopBroadcast();
+        if (!isTestMode) {
+            vm.stopBroadcast();
+        }
 
-        return (dsc, dscEngine);
+        return (dsc, dscEngine, configHelper);
     }
 }
