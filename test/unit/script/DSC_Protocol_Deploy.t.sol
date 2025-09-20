@@ -68,9 +68,9 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
      */
     function test_SetTestMode_EnablesTestMode() public {
         assertFalse(deployScript.isTestMode(), "Test mode should be false initially");
-        
+
         deployScript.setTestMode(true);
-        
+
         assertTrue(deployScript.isTestMode(), "Test mode should be enabled");
     }
 
@@ -80,9 +80,9 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_SetTestMode_DisablesTestMode() public {
         deployScript.setTestMode(true);
         assertTrue(deployScript.isTestMode(), "Test mode should be enabled");
-        
+
         deployScript.setTestMode(false);
-        
+
         assertFalse(deployScript.isTestMode(), "Test mode should be disabled");
     }
 
@@ -93,7 +93,7 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
         deployScript.setTestMode(true);
         deployScript.setTestMode(false);
         deployScript.setTestMode(true);
-        
+
         assertTrue(deployScript.isTestMode(), "Test mode should reflect last call");
     }
 
@@ -107,7 +107,7 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_TestModeAnvilNetwork() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         (DSC dsc, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Check that contracts were created
@@ -120,8 +120,16 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
 
         // Check that the deployed contracts are accessible via public variables
         assertEq(address(deployScript.dsc()), address(dsc), "Public dsc variable should match returned value");
-        assertEq(address(deployScript.dscEngine()), address(dscEngine), "Public dscEngine variable should match returned value");
-        assertEq(address(deployScript.configHelper()), address(configHelper), "Public configHelper variable should match returned value");
+        assertEq(
+            address(deployScript.dscEngine()),
+            address(dscEngine),
+            "Public dscEngine variable should match returned value"
+        );
+        assertEq(
+            address(deployScript.configHelper()),
+            address(configHelper),
+            "Public configHelper variable should match returned value"
+        );
     }
 
     /**
@@ -131,7 +139,7 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
         vm.chainId(SEPOLIA_CHAIN_ID);
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         deployScript.setTestMode(true);
-        
+
         (DSC dsc, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Check that contracts were created
@@ -148,12 +156,12 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
      */
     function test_Run_BroadcastModeDefaultBehavior() public {
         vm.chainId(ANVIL_CHAIN_ID);
-        
+
         // Create a fresh script instance and set test mode to true to avoid broadcast conflicts
         // We're testing that the default value is false and then setting to true for safe execution
         DSC_Protocol_DeployScript freshScript = new DSC_Protocol_DeployScript();
         assertFalse(freshScript.isTestMode(), "Test mode should be false by default");
-        
+
         // Set to test mode to avoid broadcast conflicts in test environment
         freshScript.setTestMode(true);
         (DSC dsc, DSCEngine dscEngine, ConfigHelper configHelper) = freshScript.run();
@@ -177,8 +185,8 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_DSCTokenConfiguration() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
-        (DSC dsc, , ) = deployScript.run();
+
+        (DSC dsc,,) = deployScript.run();
 
         assertEq(dsc.name(), "DSC", "DSC name should be correct");
         assertEq(dsc.symbol(), "DSC", "DSC symbol should be correct");
@@ -192,11 +200,18 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_DSCEngineTokenConfiguration() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         (, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Get expected configuration
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, ) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+        ) = configHelper.activeNetworkConfig();
 
         // Check token configuration
         address[] memory allowedTokens = dscEngine.getCollateralTokens();
@@ -220,20 +235,27 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_PriceFeedsWorkingCorrectly() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         (, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Get configuration
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, ) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+        ) = configHelper.activeNetworkConfig();
 
         // Test that price feeds return expected values
         MockV3Aggregator ethPriceFeed = MockV3Aggregator(wethUsdPriceFeed);
         MockV3Aggregator btcPriceFeed = MockV3Aggregator(wbtcUsdPriceFeed);
         MockV3Aggregator solPriceFeed = MockV3Aggregator(wsolUsdPriceFeed);
 
-        (, int256 ethPrice, , , ) = ethPriceFeed.latestRoundData();
-        (, int256 btcPrice, , , ) = btcPriceFeed.latestRoundData();
-        (, int256 solPrice, , , ) = solPriceFeed.latestRoundData();
+        (, int256 ethPrice,,,) = ethPriceFeed.latestRoundData();
+        (, int256 btcPrice,,,) = btcPriceFeed.latestRoundData();
+        (, int256 solPrice,,,) = solPriceFeed.latestRoundData();
 
         assertEq(ethPrice, configHelper.ETH_USD_PRICE(), "ETH price should match expected");
         assertEq(btcPrice, configHelper.BTC_USD_PRICE(), "BTC price should match expected");
@@ -259,24 +281,24 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_CompleteDeploymentWorkflow() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         (DSC dsc, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Get configuration
-        (, , , address weth, , , ) = configHelper.activeNetworkConfig();
+        (,,, address weth,,,) = configHelper.activeNetworkConfig();
 
         // Test basic protocol functionality
         ERC20Mock wethToken = ERC20Mock(weth);
-        
+
         // Mint some WETH to this test contract
         wethToken.mint(address(this), 10e18);
-        
+
         // Approve DSCEngine to spend WETH
         wethToken.approve(address(dscEngine), 10e18);
-        
+
         // Deposit collateral
         dscEngine.depositCollateral(weth, 5e18);
-        
+
         // Check collateral was deposited
         uint256 collateralDeposited = dscEngine.getCollateralBalanceOfUser(address(this), weth);
         assertEq(collateralDeposited, 5e18, "Collateral should be deposited correctly");
@@ -295,7 +317,7 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
         // Test Anvil deployment
         vm.chainId(ANVIL_CHAIN_ID);
         (, DSCEngine anvilEngine, ConfigHelper anvilConfig) = deployScript.run();
-        (, , , address anvilWeth, , , uint256 anvilKey) = anvilConfig.activeNetworkConfig();
+        (,,, address anvilWeth,,, uint256 anvilKey) = anvilConfig.activeNetworkConfig();
 
         // Reset for new deployment
         deployScript = new DSC_Protocol_DeployScript();
@@ -305,12 +327,14 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
         vm.chainId(SEPOLIA_CHAIN_ID);
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         (, DSCEngine sepoliaEngine, ConfigHelper sepoliaConfig) = deployScript.run();
-        (, , , address sepoliaWeth, , , uint256 sepoliaKey) = sepoliaConfig.activeNetworkConfig();
+        (,,, address sepoliaWeth,,, uint256 sepoliaKey) = sepoliaConfig.activeNetworkConfig();
 
         // Verify different configurations
         assertNotEq(anvilWeth, sepoliaWeth, "Different networks should have different WETH addresses");
         assertNotEq(anvilKey, sepoliaKey, "Different networks should have different deployer keys");
-        assertNotEq(address(anvilEngine), address(sepoliaEngine), "Different deployments should create different engines");
+        assertNotEq(
+            address(anvilEngine), address(sepoliaEngine), "Different deployments should create different engines"
+        );
     }
 
     ////////////////////////////////
@@ -323,10 +347,10 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_MultipleConsecutiveRuns() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         // First run
         (DSC dsc1, DSCEngine engine1, ConfigHelper config1) = deployScript.run();
-        
+
         // Second run should create new instances
         (DSC dsc2, DSCEngine engine2, ConfigHelper config2) = deployScript.run();
 
@@ -346,16 +370,16 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_OwnershipTransferCorrectness() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
-        (DSC dsc, DSCEngine dscEngine, ) = deployScript.run();
+
+        (DSC dsc, DSCEngine dscEngine,) = deployScript.run();
 
         // Check ownership was transferred
         assertEq(dsc.owner(), address(dscEngine), "DSC ownership should be transferred to DSCEngine");
-        
+
         // Check that DSCEngine can call DSC functions
         vm.prank(address(dscEngine));
         dsc.mint(address(this), 100e18);
-        
+
         assertEq(dsc.balanceOf(address(this)), 100e18, "DSCEngine should be able to mint DSC");
     }
 
@@ -365,18 +389,20 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_StateVariablesSetCorrectly() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         // Initially should be zero addresses
         assertEq(address(deployScript.dsc()), address(0), "DSC should be zero initially");
         assertEq(address(deployScript.dscEngine()), address(0), "DSCEngine should be zero initially");
         assertEq(address(deployScript.configHelper()), address(0), "ConfigHelper should be zero initially");
-        
+
         (DSC dsc, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // After run, should match returned values
         assertEq(address(deployScript.dsc()), address(dsc), "DSC state variable should be set");
         assertEq(address(deployScript.dscEngine()), address(dscEngine), "DSCEngine state variable should be set");
-        assertEq(address(deployScript.configHelper()), address(configHelper), "ConfigHelper state variable should be set");
+        assertEq(
+            address(deployScript.configHelper()), address(configHelper), "ConfigHelper state variable should be set"
+        );
     }
 
     /**
@@ -385,23 +411,30 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
     function test_Run_ArrayConstructionCorrectness() public {
         vm.chainId(ANVIL_CHAIN_ID);
         deployScript.setTestMode(true);
-        
+
         (, DSCEngine dscEngine, ConfigHelper configHelper) = deployScript.run();
 
         // Get expected configuration
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, ) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+        ) = configHelper.activeNetworkConfig();
 
         // Verify arrays were constructed correctly
         address[] memory allowedTokens = dscEngine.getCollateralTokens();
-        
+
         // Check array length
         assertEq(allowedTokens.length, 3, "Token array should have 3 elements");
-        
+
         // Check array order matches expected order (WETH, WBTC, WSOL)
         assertEq(allowedTokens[0], weth, "First token should be WETH");
         assertEq(allowedTokens[1], wbtc, "Second token should be WBTC");
         assertEq(allowedTokens[2], wsol, "Third token should be WSOL");
-        
+
         // Check that price feeds match tokens
         assertEq(dscEngine.getPriceFeed(allowedTokens[0]), wethUsdPriceFeed, "WETH price feed should match");
         assertEq(dscEngine.getPriceFeed(allowedTokens[1]), wbtcUsdPriceFeed, "WBTC price feed should match");
@@ -417,16 +450,16 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
      */
     function test_Run_TestModeVsBroadcastMode() public {
         vm.chainId(ANVIL_CHAIN_ID);
-        
+
         // Test mode should not call vm.startBroadcast/stopBroadcast
         deployScript.setTestMode(true);
         assertTrue(deployScript.isTestMode(), "Test mode should be enabled");
         (DSC dscTest, DSCEngine engineTest, ConfigHelper configTest) = deployScript.run();
-        
+
         // Test with a fresh script to verify default behavior
         DSC_Protocol_DeployScript freshScript = new DSC_Protocol_DeployScript();
         assertFalse(freshScript.isTestMode(), "Fresh script should have test mode disabled by default");
-        
+
         // Set test mode to true to avoid broadcast conflicts in test environment
         freshScript.setTestMode(true);
         (DSC dscBroadcast, DSCEngine engineBroadcast, ConfigHelper configBroadcast) = freshScript.run();
@@ -435,7 +468,7 @@ contract DSC_Protocol_Deploy_Unit_Test is Test {
         assertNotEq(address(dscTest), address(0), "Test mode should create valid DSC");
         assertNotEq(address(engineTest), address(0), "Test mode should create valid DSCEngine");
         assertNotEq(address(configTest), address(0), "Test mode should create valid ConfigHelper");
-        
+
         assertNotEq(address(dscBroadcast), address(0), "Second run should create valid DSC");
         assertNotEq(address(engineBroadcast), address(0), "Second run should create valid DSCEngine");
         assertNotEq(address(configBroadcast), address(0), "Second run should create valid ConfigHelper");

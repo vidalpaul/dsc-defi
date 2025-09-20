@@ -28,7 +28,7 @@ contract DSCEngine_Unit_Test is Test {
 
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
-    
+
     address public weth;
     address public wbtc;
     address public wsol;
@@ -38,7 +38,7 @@ contract DSCEngine_Unit_Test is Test {
         deployer.setTestMode(true);
         (dsc, dscEngine, config) = deployer.run();
 
-        (, , , weth, wbtc, wsol, ) = config.activeNetworkConfig();
+        (,,, weth, wbtc, wsol,) = config.activeNetworkConfig();
 
         ERC20Mock(weth).mint(USER_ALICE, STARTING_ERC20_BALANCE);
         ERC20Mock(wbtc).mint(USER_ALICE, STARTING_ERC20_BALANCE);

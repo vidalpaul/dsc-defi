@@ -207,13 +207,8 @@ contract MockV3Aggregator_Unit_Test is Test {
 
         aggregator.updateRoundData(testRoundId, testAnswer, testTimestamp, testStartedAt);
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.getRoundData(testRoundId);
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.getRoundData(testRoundId);
 
         assertEq(roundId, testRoundId, "Round ID should match");
         assertEq(answer, testAnswer, "Answer should match");
@@ -225,13 +220,8 @@ contract MockV3Aggregator_Unit_Test is Test {
     function test_GetRoundData_NonExistentRound() public view {
         uint80 nonExistentRoundId = 999;
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.getRoundData(nonExistentRoundId);
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.getRoundData(nonExistentRoundId);
 
         assertEq(roundId, nonExistentRoundId, "Round ID should match request");
         assertEq(answer, 0, "Answer should be zero for non-existent round");
@@ -241,13 +231,8 @@ contract MockV3Aggregator_Unit_Test is Test {
     }
 
     function test_GetRoundData_ZeroRoundId() public view {
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.getRoundData(0);
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.getRoundData(0);
 
         assertEq(roundId, 0, "Round ID should be zero");
         assertEq(answer, 0, "Answer should be zero for round 0");
@@ -261,13 +246,8 @@ contract MockV3Aggregator_Unit_Test is Test {
     ////////////////////////////////
 
     function test_LatestRoundData_InitialState() public view {
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.latestRoundData();
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.latestRoundData();
 
         assertEq(roundId, 1, "Initial round ID should be 1");
         assertEq(answer, INITIAL_ANSWER, "Initial answer should match constructor");
@@ -279,13 +259,8 @@ contract MockV3Aggregator_Unit_Test is Test {
     function test_LatestRoundData_AfterUpdate() public {
         aggregator.updateAnswer(UPDATED_ANSWER);
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.latestRoundData();
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.latestRoundData();
 
         assertEq(roundId, 2, "Round ID should be 2 after one update");
         assertEq(answer, UPDATED_ANSWER, "Answer should be updated value");
@@ -302,13 +277,8 @@ contract MockV3Aggregator_Unit_Test is Test {
 
         aggregator.updateRoundData(customRoundId, customAnswer, customTimestamp, customStartedAt);
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = aggregator.latestRoundData();
+        (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
+            aggregator.latestRoundData();
 
         assertEq(roundId, customRoundId, "Round ID should match custom value");
         assertEq(answer, customAnswer, "Answer should match custom value");
@@ -399,7 +369,7 @@ contract MockV3Aggregator_Unit_Test is Test {
 
     function test_ViewFunctions_Consistency() public view {
         // Test that view functions return consistent data
-        (uint80 roundId, int256 answer, , uint256 updatedAt, ) = aggregator.latestRoundData();
+        (uint80 roundId, int256 answer,, uint256 updatedAt,) = aggregator.latestRoundData();
 
         assertEq(roundId, aggregator.latestRound(), "Round ID should be consistent");
         assertEq(answer, aggregator.latestAnswer(), "Answer should be consistent");

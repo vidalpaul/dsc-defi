@@ -149,12 +149,11 @@ contract DSCLib_Unit_Test is Test {
         // Convert token to USD and back to token
         uint256 usdValue = mockContract.mockGetUSDValue(address(priceFeed), TOKEN_AMOUNT);
         uint256 tokenAmountBack = mockContract.mockGetTokenAmountFromUSD(address(priceFeed), usdValue);
-        
+
         // Should be approximately equal (allowing for rounding differences)
-        uint256 difference = tokenAmountBack > TOKEN_AMOUNT ? 
-            tokenAmountBack - TOKEN_AMOUNT : 
-            TOKEN_AMOUNT - tokenAmountBack;
-        
+        uint256 difference =
+            tokenAmountBack > TOKEN_AMOUNT ? tokenAmountBack - TOKEN_AMOUNT : TOKEN_AMOUNT - tokenAmountBack;
+
         assertLt(difference, TOKEN_AMOUNT / 1000, "Round trip should be accurate within 0.1%");
     }
 
@@ -165,14 +164,18 @@ contract DSCLib_Unit_Test is Test {
     function test_SafeTransfer_Success() public {
         // Setup: Transfer tokens to mock contract first
         token.transfer(address(mockContract), TRANSFER_AMOUNT * 2);
-        
+
         uint256 initialBalance = token.balanceOf(USER_BOB);
         uint256 initialMockBalance = token.balanceOf(address(mockContract));
 
         mockContract.mockSafeTransfer(address(token), USER_BOB, TRANSFER_AMOUNT);
 
         assertEq(token.balanceOf(USER_BOB), initialBalance + TRANSFER_AMOUNT, "Transfer should succeed");
-        assertEq(token.balanceOf(address(mockContract)), initialMockBalance - TRANSFER_AMOUNT, "Sender balance should decrease");
+        assertEq(
+            token.balanceOf(address(mockContract)),
+            initialMockBalance - TRANSFER_AMOUNT,
+            "Sender balance should decrease"
+        );
     }
 
     function test_SafeTransfer_InsufficientBalance() public {
@@ -185,7 +188,7 @@ contract DSCLib_Unit_Test is Test {
     function test_SafeTransfer_ZeroAmount() public {
         // Setup: Transfer some tokens to mock contract
         token.transfer(address(mockContract), TRANSFER_AMOUNT);
-        
+
         uint256 initialBalance = token.balanceOf(USER_BOB);
 
         mockContract.mockSafeTransfer(address(token), USER_BOB, 0);
@@ -245,12 +248,9 @@ contract DSCLib_Unit_Test is Test {
     function test_CalculateHealthFactor_HealthyPosition() public view {
         uint256 totalDSCMinted = 1000e18;
         uint256 collateralValueInUsd = 3000e18; // $3000 collateral, $1000 debt = 300% collateralization
-        
-        uint256 healthFactor = mockContract.mockCalculateHealthFactor(
-            totalDSCMinted, 
-            collateralValueInUsd, 
-            LIQUIDATION_THRESHOLD
-        );
+
+        uint256 healthFactor =
+            mockContract.mockCalculateHealthFactor(totalDSCMinted, collateralValueInUsd, LIQUIDATION_THRESHOLD);
 
         uint256 expectedHealthFactor = (collateralValueInUsd * LIQUIDATION_THRESHOLD * 1e18) / (100 * totalDSCMinted);
         assertEq(healthFactor, expectedHealthFactor, "Should calculate healthy position correctly");
@@ -261,11 +261,8 @@ contract DSCLib_Unit_Test is Test {
         uint256 totalDSCMinted = 1000e18;
         uint256 collateralValueInUsd = 1500e18; // $1500 collateral, $1000 debt = 150% collateralization
 
-        uint256 healthFactor = mockContract.mockCalculateHealthFactor(
-            totalDSCMinted, 
-            collateralValueInUsd, 
-            LIQUIDATION_THRESHOLD
-        );
+        uint256 healthFactor =
+            mockContract.mockCalculateHealthFactor(totalDSCMinted, collateralValueInUsd, LIQUIDATION_THRESHOLD);
 
         uint256 expectedHealthFactor = (collateralValueInUsd * LIQUIDATION_THRESHOLD * 1e18) / (100 * totalDSCMinted);
         assertEq(healthFactor, expectedHealthFactor, "Should calculate unhealthy position correctly");
@@ -276,11 +273,8 @@ contract DSCLib_Unit_Test is Test {
         uint256 totalDSCMinted = 0;
         uint256 collateralValueInUsd = 1000e18;
 
-        uint256 healthFactor = mockContract.mockCalculateHealthFactor(
-            totalDSCMinted, 
-            collateralValueInUsd, 
-            LIQUIDATION_THRESHOLD
-        );
+        uint256 healthFactor =
+            mockContract.mockCalculateHealthFactor(totalDSCMinted, collateralValueInUsd, LIQUIDATION_THRESHOLD);
 
         assertEq(healthFactor, type(uint256).max, "Zero DSC minted should return max health factor");
     }
@@ -289,11 +283,8 @@ contract DSCLib_Unit_Test is Test {
         uint256 totalDSCMinted = 1000e18;
         uint256 collateralValueInUsd = 0;
 
-        uint256 healthFactor = mockContract.mockCalculateHealthFactor(
-            totalDSCMinted, 
-            collateralValueInUsd, 
-            LIQUIDATION_THRESHOLD
-        );
+        uint256 healthFactor =
+            mockContract.mockCalculateHealthFactor(totalDSCMinted, collateralValueInUsd, LIQUIDATION_THRESHOLD);
 
         assertEq(healthFactor, 0, "Zero collateral should return zero health factor");
     }
@@ -302,11 +293,8 @@ contract DSCLib_Unit_Test is Test {
         uint256 totalDSCMinted = 1000e18;
         uint256 collateralValueInUsd = 2000e18; // Exactly 200% collateralization with 50% threshold
 
-        uint256 healthFactor = mockContract.mockCalculateHealthFactor(
-            totalDSCMinted, 
-            collateralValueInUsd, 
-            LIQUIDATION_THRESHOLD
-        );
+        uint256 healthFactor =
+            mockContract.mockCalculateHealthFactor(totalDSCMinted, collateralValueInUsd, LIQUIDATION_THRESHOLD);
 
         assertEq(healthFactor, 1e18, "Should be exactly at liquidation threshold");
     }
@@ -349,18 +337,17 @@ contract DSCLib_Unit_Test is Test {
 
     function test_CompleteUSDConversionWorkflow() public view {
         uint256 tokenAmount = 5e18; // 5 tokens
-        
+
         // Convert tokens to USD
         uint256 usdValue = mockContract.mockGetUSDValue(address(priceFeed), tokenAmount);
-        
+
         // Convert USD back to tokens
         uint256 tokenAmountBack = mockContract.mockGetTokenAmountFromUSD(address(priceFeed), usdValue);
-        
+
         // Should be approximately equal
-        uint256 difference = tokenAmountBack > tokenAmount ? 
-            tokenAmountBack - tokenAmount : 
-            tokenAmount - tokenAmountBack;
-            
+        uint256 difference =
+            tokenAmountBack > tokenAmount ? tokenAmountBack - tokenAmount : tokenAmount - tokenAmountBack;
+
         assertLt(difference, tokenAmount / 100, "Conversion round trip should be accurate within 1%");
     }
 
@@ -369,9 +356,9 @@ contract DSCLib_Unit_Test is Test {
         uint256 collateralValue = 10000e18;
         uint256 dscMinted = 4000e18;
         uint256 threshold = 80; // 80% threshold (125% overcollateralization required)
-        
+
         uint256 healthFactor = mockContract.mockCalculateHealthFactor(dscMinted, collateralValue, threshold);
-        
+
         // Expected: (10000 * 80 / 100) * 1e18 / 4000 = 2e18 (200% health factor)
         uint256 expectedHealthFactor = 2e18;
         assertEq(healthFactor, expectedHealthFactor, "Real-world health factor calculation should be correct");
@@ -382,10 +369,10 @@ contract DSCLib_Unit_Test is Test {
         // Test with different price feed decimals
         MockV3Aggregator priceFeed6Decimals = new MockV3Aggregator(6, 2000e6); // 6 decimals
         MockV3Aggregator priceFeed18Decimals = new MockV3Aggregator(18, 2000e18); // 18 decimals
-        
+
         uint256 price6 = mockContract.mockGetLatestPrice(address(priceFeed6Decimals));
         uint256 price18 = mockContract.mockGetLatestPrice(address(priceFeed18Decimals));
-        
+
         assertEq(price6, 2000e6, "Should handle 6 decimal price feed");
         assertEq(price18, 2000e18, "Should handle 18 decimal price feed");
     }
@@ -398,9 +385,9 @@ contract DSCLib_Unit_Test is Test {
         // Test with very large numbers
         uint256 maxCollateral = type(uint128).max;
         uint256 maxDSC = type(uint128).max;
-        
+
         uint256 healthFactor = mockContract.mockCalculateHealthFactor(maxDSC, maxCollateral, LIQUIDATION_THRESHOLD);
-        
+
         // Should not overflow and should be reasonable
         assertGt(healthFactor, 0, "Should handle extreme values without reverting");
         assertLt(healthFactor, type(uint256).max, "Should not return max value for non-zero DSC");

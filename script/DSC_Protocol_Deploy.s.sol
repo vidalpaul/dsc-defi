@@ -14,11 +14,11 @@ contract DSC_Protocol_DeployScript is Script {
     DSCEngine public dscEngine;
 
     ConfigHelper public configHelper;
-    
+
     bool public isTestMode;
 
     function setUp() public {}
-    
+
     function setTestMode(bool _isTestMode) external {
         isTestMode = _isTestMode;
     }
@@ -52,11 +52,7 @@ contract DSC_Protocol_DeployScript is Script {
 
         dsc = new DSC();
 
-        dscEngine = new DSCEngine(
-            tokenAddresses,
-            priceFeedAddresses,
-            address(dsc)
-        );
+        dscEngine = new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsc));
 
         dsc.transferOwnership(address(dscEngine));
 

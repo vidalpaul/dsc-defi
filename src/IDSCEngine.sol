@@ -38,15 +38,10 @@ interface IDSCEngine {
     // =============================================================
     //                       EVENTS
     // =============================================================
-    event DSC_Engine_PriceFeed_Set(
-        address indexed collateralToken,
-        address indexed priceFeed
-    );
+    event DSC_Engine_PriceFeed_Set(address indexed collateralToken, address indexed priceFeed);
 
     event DSC_Engine_Collateral_Deposited(
-        address indexed user,
-        address indexed collateralToken,
-        uint256 indexed amountCollateral
+        address indexed user, address indexed collateralToken, uint256 indexed amountCollateral
     );
 
     event DSC_Engine_Collateral_Redeemed(
@@ -59,9 +54,7 @@ interface IDSCEngine {
     event DSC_Engine_PriceFeed_Unset(address indexed collateralToken);
 
     event DSC_Engine_Liquidate_DebtorLiquidated(
-        address indexed debtor,
-        address indexed liquidator,
-        address indexed collateralToken
+        address indexed debtor, address indexed liquidator, address indexed collateralToken
     );
 
     // =============================================================
@@ -73,10 +66,7 @@ interface IDSCEngine {
      * @param _collateralToken The address of the ERC20 token to deposit as collateral
      * @param _amountCollateral The amount of collateral to deposit
      */
-    function depositCollateral(
-        address _collateralToken,
-        uint256 _amountCollateral
-    ) external;
+    function depositCollateral(address _collateralToken, uint256 _amountCollateral) external;
 
     /**
      * @notice Redeems collateral from the protocol
@@ -84,10 +74,7 @@ interface IDSCEngine {
      * @param _collateralToken The address of the ERC20 token to redeem
      * @param _amountCollateral The amount of collateral to redeem
      */
-    function redeemCollateral(
-        address _collateralToken,
-        uint256 _amountCollateral
-    ) external;
+    function redeemCollateral(address _collateralToken, uint256 _amountCollateral) external;
 
     /**
      * @notice Mints DSC stablecoins
@@ -118,11 +105,8 @@ interface IDSCEngine {
      * @param _amountCollateral The amount of collateral to redeem
      * @param _amountDSCToBurn The amount of DSC to burn
      */
-    function redeemCollateralForDSC(
-        address _collateralToken,
-        uint256 _amountCollateral,
-        uint256 _amountDSCToBurn
-    ) external;
+    function redeemCollateralForDSC(address _collateralToken, uint256 _amountCollateral, uint256 _amountDSCToBurn)
+        external;
 
     /**
      * @notice Burns DSC to improve health factor
@@ -138,11 +122,7 @@ interface IDSCEngine {
      * @param _user The address of the user to liquidate
      * @param _debtToCover The amount of DSC debt to cover
      */
-    function liquidate(
-        address _collateralToken,
-        address _user,
-        uint256 _debtToCover
-    ) external;
+    function liquidate(address _collateralToken, address _user, uint256 _debtToCover) external;
 
     /**
      * @notice Gets the health factor of a specific user
@@ -152,15 +132,9 @@ interface IDSCEngine {
      */
     function getHealthFactor(address _user) external view returns (uint256);
 
-    function batchSetPriceFeeds(
-        address[] memory _collateralTokens,
-        address[] memory _priceFeeds
-    ) external;
+    function batchSetPriceFeeds(address[] memory _collateralTokens, address[] memory _priceFeeds) external;
 
-    function setPriceFeed(
-        address _collateralToken,
-        address _priceFeed
-    ) external;
+    function setPriceFeed(address _collateralToken, address _priceFeed) external;
 
     function unsetPriceFeed(address _collateralToken) external;
 }

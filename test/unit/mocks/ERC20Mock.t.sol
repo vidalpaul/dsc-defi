@@ -150,7 +150,9 @@ contract ERC20Mock_Unit_Test is Test {
     }
 
     function test_Burn_InsufficientBalance() public {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, USER_BOB, 0, BURN_AMOUNT));
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, USER_BOB, 0, BURN_AMOUNT)
+        );
         token.burn(USER_BOB, BURN_AMOUNT);
     }
 
@@ -199,7 +201,9 @@ contract ERC20Mock_Unit_Test is Test {
     }
 
     function test_TransferInternal_InsufficientBalance() public {
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, USER_BOB, 0, TRANSFER_AMOUNT));
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, USER_BOB, 0, TRANSFER_AMOUNT)
+        );
         token.transferInternal(USER_BOB, USER_ALICE, TRANSFER_AMOUNT);
     }
 

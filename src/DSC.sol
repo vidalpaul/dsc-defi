@@ -39,10 +39,7 @@ contract DSC is ERC20Burnable, Ownable {
      */
     function burn(uint256 _amount) public override onlyOwner {
         require(_amount > 0, DSC_Burn_AmountCannotBeZero());
-        require(
-            _amount <= balanceOf(msg.sender),
-            DSC_Burn_AmountCannotBeMoreThanBalance()
-        );
+        require(_amount <= balanceOf(msg.sender), DSC_Burn_AmountCannotBeMoreThanBalance());
         super.burn(_amount);
     }
 
@@ -55,10 +52,7 @@ contract DSC is ERC20Burnable, Ownable {
      * @custom:throws DSC_Mint_AmountCannotBeZero if _amount is 0
      * @custom:throws DSC_Mint_RecipientCannotBeZeroAddress if _to is the zero address
      */
-    function mint(
-        address _to,
-        uint256 _amount
-    ) external onlyOwner returns (bool) {
+    function mint(address _to, uint256 _amount) external onlyOwner returns (bool) {
         require(_amount > 0, DSC_Mint_AmountCannotBeZero());
         require(_to != address(0), DSC_Mint_RecipientCannotBeZeroAddress());
         _mint(_to, _amount);

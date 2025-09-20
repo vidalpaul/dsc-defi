@@ -38,9 +38,17 @@ contract Config_Helper_Unit_Test is Test {
     function test_Constructor_SetsSepoliaConfigOnSepoliaNetwork() public {
         vm.chainId(SEPOLIA_CHAIN_ID);
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
-        
+
         configHelper = new ConfigHelper();
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, uint256 deployerKey) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+            uint256 deployerKey
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory config = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed,
@@ -64,9 +72,17 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_Constructor_SetsAnvilConfigOnNonSepoliaNetwork() public {
         vm.chainId(ANVIL_CHAIN_ID);
-        
+
         configHelper = new ConfigHelper();
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, uint256 deployerKey) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+            uint256 deployerKey
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory config = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed,
@@ -83,7 +99,9 @@ contract Config_Helper_Unit_Test is Test {
         assertNotEq(config.weth, address(0), "WETH token should be set");
         assertNotEq(config.wbtc, address(0), "WBTC token should be set");
         assertNotEq(config.wsol, address(0), "WSOL token should be set");
-        assertEq(config.deployerKey, configHelper.DEFAULT_ANVIL_PRIVATE_KEY(), "Deployer key should be default Anvil key");
+        assertEq(
+            config.deployerKey, configHelper.DEFAULT_ANVIL_PRIVATE_KEY(), "Deployer key should be default Anvil key"
+        );
     }
 
     ////////////////////////////////
@@ -95,12 +113,16 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_Constants_AreSetCorrectly() public {
         configHelper = new ConfigHelper();
-        
+
         assertEq(configHelper.DECIMALS(), 8, "Decimals should be 8");
         assertEq(configHelper.ETH_USD_PRICE(), 2000e8, "ETH price should be 2000e8");
         assertEq(configHelper.BTC_USD_PRICE(), 50000e8, "BTC price should be 50000e8");
         assertEq(configHelper.SOL_USD_PRICE(), 100e8, "SOL price should be 100e8");
-        assertEq(configHelper.DEFAULT_ANVIL_PRIVATE_KEY(), 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80, "Default Anvil private key should match");
+        assertEq(
+            configHelper.DEFAULT_ANVIL_PRIVATE_KEY(),
+            0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80,
+            "Default Anvil private key should match"
+        );
     }
 
     ////////////////////////////////
@@ -113,7 +135,7 @@ contract Config_Helper_Unit_Test is Test {
     function test_GetSepoliaEthConfig_ReturnsCorrectConfiguration() public {
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         configHelper = new ConfigHelper();
-        
+
         ConfigHelper.NetworkConfig memory sepoliaConfig = configHelper.getSepoliaEthConfig();
 
         assertEq(sepoliaConfig.wethUsdPriceFeed, SEPOLIA_WETH_USD_PRICE_FEED, "WETH price feed should match");
@@ -130,7 +152,7 @@ contract Config_Helper_Unit_Test is Test {
     function test_GetSepoliaEthConfig_MultipleCallsReturnSameData() public {
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         configHelper = new ConfigHelper();
-        
+
         ConfigHelper.NetworkConfig memory config1 = configHelper.getSepoliaEthConfig();
         ConfigHelper.NetworkConfig memory config2 = configHelper.getSepoliaEthConfig();
 
@@ -151,7 +173,7 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_GetOrCreateAnvilEthConfig_CreatesNewConfigurationWhenEmpty() public {
         configHelper = new ConfigHelper();
-        
+
         ConfigHelper.NetworkConfig memory anvilConfig = configHelper.getOrCreateAnvilEthConfig();
 
         assertNotEq(anvilConfig.wethUsdPriceFeed, address(0), "WETH price feed should be created");
@@ -169,10 +191,10 @@ contract Config_Helper_Unit_Test is Test {
     function test_GetOrCreateAnvilEthConfig_ReturnsExistingConfigWhenAlreadySet() public {
         vm.chainId(ANVIL_CHAIN_ID);
         configHelper = new ConfigHelper();
-        
+
         // First call should create config
         ConfigHelper.NetworkConfig memory firstConfig = configHelper.getOrCreateAnvilEthConfig();
-        
+
         // Second call should return the same config
         ConfigHelper.NetworkConfig memory secondConfig = configHelper.getOrCreateAnvilEthConfig();
 
@@ -189,7 +211,7 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_GetOrCreateAnvilEthConfig_CreatedMocksHaveCorrectProperties() public {
         configHelper = new ConfigHelper();
-        
+
         ConfigHelper.NetworkConfig memory anvilConfig = configHelper.getOrCreateAnvilEthConfig();
 
         // Test price feeds
@@ -201,9 +223,9 @@ contract Config_Helper_Unit_Test is Test {
         assertEq(btcPriceFeed.decimals(), configHelper.DECIMALS(), "BTC price feed decimals should match");
         assertEq(solPriceFeed.decimals(), configHelper.DECIMALS(), "SOL price feed decimals should match");
 
-        (, int256 ethPrice, , , ) = ethPriceFeed.latestRoundData();
-        (, int256 btcPrice, , , ) = btcPriceFeed.latestRoundData();
-        (, int256 solPrice, , , ) = solPriceFeed.latestRoundData();
+        (, int256 ethPrice,,,) = ethPriceFeed.latestRoundData();
+        (, int256 btcPrice,,,) = btcPriceFeed.latestRoundData();
+        (, int256 solPrice,,,) = solPriceFeed.latestRoundData();
 
         assertEq(ethPrice, configHelper.ETH_USD_PRICE(), "ETH price should match constant");
         assertEq(btcPrice, configHelper.BTC_USD_PRICE(), "BTC price should match constant");
@@ -238,7 +260,15 @@ contract Config_Helper_Unit_Test is Test {
         vm.chainId(SEPOLIA_CHAIN_ID);
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         ConfigHelper sepoliaHelper = new ConfigHelper();
-        (address wethUsdPriceFeedS, address wbtcUsdPriceFeedS, address wsolUsdPriceFeedS, address wethS, address wbtcS, address wsolS, uint256 deployerKeyS) = sepoliaHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeedS,
+            address wbtcUsdPriceFeedS,
+            address wsolUsdPriceFeedS,
+            address wethS,
+            address wbtcS,
+            address wsolS,
+            uint256 deployerKeyS
+        ) = sepoliaHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory sepoliaConfig = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeedS,
             wbtcUsdPriceFeed: wbtcUsdPriceFeedS,
@@ -252,7 +282,15 @@ contract Config_Helper_Unit_Test is Test {
         // Test Anvil configuration
         vm.chainId(ANVIL_CHAIN_ID);
         ConfigHelper anvilHelper = new ConfigHelper();
-        (address wethUsdPriceFeedA, address wbtcUsdPriceFeedA, address wsolUsdPriceFeedA, address wethA, address wbtcA, address wsolA, uint256 deployerKeyA) = anvilHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeedA,
+            address wbtcUsdPriceFeedA,
+            address wsolUsdPriceFeedA,
+            address wethA,
+            address wbtcA,
+            address wsolA,
+            uint256 deployerKeyA
+        ) = anvilHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory anvilConfig = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeedA,
             wbtcUsdPriceFeed: wbtcUsdPriceFeedA,
@@ -273,9 +311,17 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_NetworkConfig_UnknownChainIdDefaultsToAnvil() public {
         vm.chainId(999999); // Unknown chain ID
-        
+
         configHelper = new ConfigHelper();
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, uint256 deployerKey) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+            uint256 deployerKey
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory config = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed,
@@ -300,9 +346,17 @@ contract Config_Helper_Unit_Test is Test {
     function test_Integration_CompleteWorkflow() public {
         vm.chainId(ANVIL_CHAIN_ID);
         configHelper = new ConfigHelper();
-        
+
         // Get the active config
-        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address wsolUsdPriceFeed, address weth, address wbtc, address wsol, uint256 deployerKey) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed,
+            address wbtcUsdPriceFeed,
+            address wsolUsdPriceFeed,
+            address weth,
+            address wbtc,
+            address wsol,
+            uint256 deployerKey
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory activeConfig = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed,
@@ -312,7 +366,7 @@ contract Config_Helper_Unit_Test is Test {
             wsol: wsol,
             deployerKey: deployerKey
         });
-        
+
         // Verify all addresses are set
         assertNotEq(activeConfig.wethUsdPriceFeed, address(0), "WETH price feed should be set");
         assertNotEq(activeConfig.wbtcUsdPriceFeed, address(0), "WBTC price feed should be set");
@@ -325,7 +379,7 @@ contract Config_Helper_Unit_Test is Test {
         // Test that we can interact with the created contracts
         MockV3Aggregator priceFeed = MockV3Aggregator(activeConfig.wethUsdPriceFeed);
         ERC20Mock token = ERC20Mock(activeConfig.weth);
-        
+
         assertEq(priceFeed.decimals(), 8, "Price feed should have correct decimals");
         assertEq(token.decimals(), 18, "Token should have correct decimals");
     }
@@ -339,8 +393,16 @@ contract Config_Helper_Unit_Test is Test {
      */
     function test_EdgeCase_ActiveConfigMultipleReads() public {
         configHelper = new ConfigHelper();
-        
-        (address wethUsdPriceFeed1, address wbtcUsdPriceFeed1, address wsolUsdPriceFeed1, address weth1, address wbtc1, address wsol1, uint256 deployerKey1) = configHelper.activeNetworkConfig();
+
+        (
+            address wethUsdPriceFeed1,
+            address wbtcUsdPriceFeed1,
+            address wsolUsdPriceFeed1,
+            address weth1,
+            address wbtc1,
+            address wsol1,
+            uint256 deployerKey1
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory config1 = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed1,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed1,
@@ -350,7 +412,15 @@ contract Config_Helper_Unit_Test is Test {
             wsol: wsol1,
             deployerKey: deployerKey1
         });
-        (address wethUsdPriceFeed2, address wbtcUsdPriceFeed2, address wsolUsdPriceFeed2, address weth2, address wbtc2, address wsol2, uint256 deployerKey2) = configHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeed2,
+            address wbtcUsdPriceFeed2,
+            address wsolUsdPriceFeed2,
+            address weth2,
+            address wbtc2,
+            address wsol2,
+            uint256 deployerKey2
+        ) = configHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory config2 = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeed2,
             wbtcUsdPriceFeed: wbtcUsdPriceFeed2,
@@ -372,7 +442,15 @@ contract Config_Helper_Unit_Test is Test {
         // Start with Anvil
         vm.chainId(ANVIL_CHAIN_ID);
         ConfigHelper anvilHelper = new ConfigHelper();
-        (address wethUsdPriceFeedA, address wbtcUsdPriceFeedA, address wsolUsdPriceFeedA, address wethA, address wbtcA, address wsolA, uint256 deployerKeyA) = anvilHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeedA,
+            address wbtcUsdPriceFeedA,
+            address wsolUsdPriceFeedA,
+            address wethA,
+            address wbtcA,
+            address wsolA,
+            uint256 deployerKeyA
+        ) = anvilHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory anvilConfig = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeedA,
             wbtcUsdPriceFeed: wbtcUsdPriceFeedA,
@@ -387,7 +465,15 @@ contract Config_Helper_Unit_Test is Test {
         vm.chainId(SEPOLIA_CHAIN_ID);
         vm.setEnv("PRIVATE_KEY", "1234567890123456789012345678901234567890123456789012345678901234");
         ConfigHelper sepoliaHelper = new ConfigHelper();
-        (address wethUsdPriceFeedS, address wbtcUsdPriceFeedS, address wsolUsdPriceFeedS, address wethS, address wbtcS, address wsolS, uint256 deployerKeyS) = sepoliaHelper.activeNetworkConfig();
+        (
+            address wethUsdPriceFeedS,
+            address wbtcUsdPriceFeedS,
+            address wsolUsdPriceFeedS,
+            address wethS,
+            address wbtcS,
+            address wsolS,
+            uint256 deployerKeyS
+        ) = sepoliaHelper.activeNetworkConfig();
         ConfigHelper.NetworkConfig memory sepoliaConfig = ConfigHelper.NetworkConfig({
             wethUsdPriceFeed: wethUsdPriceFeedS,
             wbtcUsdPriceFeed: wbtcUsdPriceFeedS,
@@ -399,6 +485,10 @@ contract Config_Helper_Unit_Test is Test {
         });
 
         // Configurations should be different
-        assertNotEq(anvilConfig.wethUsdPriceFeed, sepoliaConfig.wethUsdPriceFeed, "Different networks should have different configs");
+        assertNotEq(
+            anvilConfig.wethUsdPriceFeed,
+            sepoliaConfig.wethUsdPriceFeed,
+            "Different networks should have different configs"
+        );
     }
 }

@@ -36,11 +36,7 @@ contract ConfigHelper is Script {
         }
     }
 
-    function getSepoliaEthConfig()
-        public
-        view
-        returns (NetworkConfig memory sepoliaNetworkConfig)
-    {
+    function getSepoliaEthConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             wethUsdPriceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306, // ETH / USD
             wbtcUsdPriceFeed: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43,
@@ -52,32 +48,20 @@ contract ConfigHelper is Script {
         });
     }
 
-    function getOrCreateAnvilEthConfig()
-        public
-        returns (NetworkConfig memory anvilNetworkConfig)
-    {
+    function getOrCreateAnvilEthConfig() public returns (NetworkConfig memory anvilNetworkConfig) {
         // Check to see if we set an active network config
         if (activeNetworkConfig.wethUsdPriceFeed != address(0)) {
             return activeNetworkConfig;
         }
 
         vm.startBroadcast();
-        MockV3Aggregator ethUsdPriceFeed = new MockV3Aggregator(
-            DECIMALS,
-            ETH_USD_PRICE
-        );
+        MockV3Aggregator ethUsdPriceFeed = new MockV3Aggregator(DECIMALS, ETH_USD_PRICE);
         ERC20Mock wethMock = new ERC20Mock("WETH", "WETH", msg.sender, 1000e8);
 
-        MockV3Aggregator btcUsdPriceFeed = new MockV3Aggregator(
-            DECIMALS,
-            BTC_USD_PRICE
-        );
+        MockV3Aggregator btcUsdPriceFeed = new MockV3Aggregator(DECIMALS, BTC_USD_PRICE);
         ERC20Mock wbtcMock = new ERC20Mock("WBTC", "WBTC", msg.sender, 1000e8);
 
-        MockV3Aggregator solUsdPriceFeed = new MockV3Aggregator(
-            DECIMALS,
-            SOL_USD_PRICE
-        );
+        MockV3Aggregator solUsdPriceFeed = new MockV3Aggregator(DECIMALS, SOL_USD_PRICE);
         ERC20Mock wsolMock = new ERC20Mock("WSOL", "WSOL", msg.sender, 1000e8);
 
         vm.stopBroadcast();

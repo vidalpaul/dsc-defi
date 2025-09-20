@@ -56,7 +56,7 @@ library DSCLib {
      */
     function getLatestPrice(address _priceFeed) internal view returns (uint256 price) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(_priceFeed);
-        (, int256 priceInt, , , ) = priceFeed.latestRoundData();
+        (, int256 priceInt,,,) = priceFeed.latestRoundData();
         return uint256(priceInt);
     }
 
@@ -66,10 +66,7 @@ library DSCLib {
      * @param _amount The amount of tokens to convert
      * @return usdValue The USD value of the token amount
      */
-    function getUSDValue(
-        address _priceFeed,
-        uint256 _amount
-    ) internal view returns (uint256 usdValue) {
+    function getUSDValue(address _priceFeed, uint256 _amount) internal view returns (uint256 usdValue) {
         uint256 price = getLatestPrice(_priceFeed);
         return ((price * ADDITIONAL_FEED_PRECISION) * _amount) / 1e18;
     }
@@ -80,10 +77,11 @@ library DSCLib {
      * @param _usdAmountInWei The USD amount in wei (18 decimals)
      * @return tokenAmount The equivalent amount in tokens
      */
-    function getTokenAmountFromUSD(
-        address _priceFeed,
-        uint256 _usdAmountInWei
-    ) internal view returns (uint256 tokenAmount) {
+    function getTokenAmountFromUSD(address _priceFeed, uint256 _usdAmountInWei)
+        internal
+        view
+        returns (uint256 tokenAmount)
+    {
         uint256 price = getLatestPrice(_priceFeed);
         return (_usdAmountInWei * PRECISION) / (price * ADDITIONAL_FEED_PRECISION);
     }
@@ -98,11 +96,7 @@ library DSCLib {
      * @param _to The recipient address
      * @param _amount The amount to transfer
      */
-    function safeTransfer(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function safeTransfer(address _token, address _to, uint256 _amount) internal {
         bool success = IERC20(_token).transfer(_to, _amount);
         require(success, DSCLib_TransferFailed());
     }
@@ -114,12 +108,7 @@ library DSCLib {
      * @param _to The recipient address
      * @param _amount The amount to transfer
      */
-    function safeTransferFrom(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function safeTransferFrom(address _token, address _from, address _to, uint256 _amount) internal {
         bool success = IERC20(_token).transferFrom(_from, _to, _amount);
         require(success, DSCLib_TransferFailed());
     }
