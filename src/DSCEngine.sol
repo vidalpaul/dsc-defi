@@ -164,75 +164,6 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
     // =============================================================
 
     /**
-     * @notice Deposits collateral into the protocol
-     * @dev Transfers collateral from the user to the protocol
-     * @param _collateralToken The address of the ERC20 token to deposit as collateral
-     * @param _amountCollateral The amount of collateral to deposit
-     * @notice Follows CEI
-     */
-    function depositCollateral(
-        address _collateralToken,
-        uint256 _amountCollateral
-    )
-        external
-        moreThanZero(_amountCollateral)
-        collateralIsMapped(_collateralToken)
-        nonReentrant
-    {
-        s_userToCollateralTokenToAmount[msg.sender][
-            _collateralToken
-        ] += _amountCollateral;
-
-        emit DSC_Engine_Collateral_Deposited(
-            msg.sender,
-            _collateralToken,
-            _amountCollateral
-        );
-
-        bool success = IERC20(_collateralToken).transferFrom(
-            msg.sender,
-            address(this),
-            _amountCollateral
-        );
-
-        require(success == true, DSC_Engine_Collateral_TransferFailed());
-    }
-
-    /**
-     * @notice Redeems collateral from the protocol
-     * @dev Returns collateral to the user, must maintain health factor above threshold
-     * @param _collateralToken The address of the ERC20 token to redeem
-     * @param _amountCollateral The amount of collateral to redeem
-     */
-    function redeemCollateral(
-        address _collateralToken,
-        uint256 _amountCollateral
-    ) external {}
-
-    /**
-     * @notice Mints DSC stablecoins
-     * @dev User must have sufficient collateral to maintain health factor
-     * @param _amountDSCToMint The amount of DSC to mint
-     */
-
-    function mintDSC(
-        uint256 _amountDSCToMint
-    )
-        external
-        moreThanZero(_amountDSCToMint)
-        nonReentrant
-        returns (bool minted)
-    {
-        s_userToDSCAmountMinted[msg.sender] += _amountDSCToMint;
-
-        _revertIfUnhealthy(msg.sender);
-
-        minted = i_dsc.mint(msg.sender, _amountDSCToMint);
-
-        require(minted, DSC_Engine_DSC_MintFailed());
-    }
-
-    /**
      * @notice Deposits collateral and mints DSC in a single transaction
      * @dev Combines depositCollateral and mintDSC for gas efficiency
      * @param _collateralToken The address of the ERC20 token to deposit as collateral
@@ -244,7 +175,10 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         address _collateralToken,
         uint256 _amountCollateral,
         uint256 _amountDSCToMint
-    ) external {}
+    ) external nonReentrant {
+        depositCollateral(_collateralToken, _amountCollateral);
+        mintDSC(_amountDSCToMint);
+    }
 
     /**
      * @notice Redeems collateral by burning DSC
@@ -257,14 +191,29 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         address _collateralToken,
         uint256 _amountCollateral,
         uint256 _amountDSCToBurn
-    ) external {}
+    ) external moreThanZero(_amountCollateral) {
+        burnDSC(_amountDSCToBurn);
+        redeemCollateral(_collateralToken, _amountCollateral);
+    }
 
     /**
      * @notice Burns DSC to improve health factor
      * @dev Destroys DSC tokens to reduce debt position
      * @param _amount The amount of DSC to burn
      */
-    function burnDSC(uint256 _amount) external {}
+    function burnDSC(uint256 _amount) public moreThanZero(_amount) {
+        s_userToDSCAmountMinted[msg.sender] -= _amount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), _amount);
+
+        require(success, DSC_Engine_DSC_BurnFailed());
+
+        i_dsc.burn(_amount);
+
+        /*
+         * @dev note to auditor: check if this is really necessary
+         */
+        _revertIfUnhealthy(msg.sender);
+    }
 
     /**
      * @notice Liquidates an undercollateralized position
@@ -338,6 +287,94 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
     // =============================================================
     //                       PUBLIC FUNCTIONS
     // =============================================================
+
+    /**
+     * @notice Deposits collateral into the protocol
+     * @dev Transfers collateral from the user to the protocol
+     * @param _collateralToken The address of the ERC20 token to deposit as collateral
+     * @param _amountCollateral The amount of collateral to deposit
+     * @notice Follows CEI
+     */
+    function depositCollateral(
+        address _collateralToken,
+        uint256 _amountCollateral
+    )
+        public
+        moreThanZero(_amountCollateral)
+        collateralIsMapped(_collateralToken)
+        nonReentrant
+    {
+        s_userToCollateralTokenToAmount[msg.sender][
+            _collateralToken
+        ] += _amountCollateral;
+
+        emit DSC_Engine_Collateral_Deposited(
+            msg.sender,
+            _collateralToken,
+            _amountCollateral
+        );
+
+        bool success = IERC20(_collateralToken).transferFrom(
+            msg.sender,
+            address(this),
+            _amountCollateral
+        );
+
+        require(success == true, DSC_Engine_Collateral_TransferFailed());
+    }
+
+    /**
+     * @notice Redeems collateral from the protocol
+     * @dev Returns collateral to the user, must maintain health factor above threshold
+     * @param _collateralToken The address of the ERC20 token to redeem
+     * @param _amountCollateral The amount of collateral to redeem
+     */
+    function redeemCollateral(
+        address _collateralToken,
+        uint256 _amountCollateral
+    )
+        external
+        collateralIsMapped(_collateralToken)
+        moreThanZero(_amountCollateral)
+        nonReentrant
+    {
+        s_userToCollateralTokenToAmount[msg.sender][
+            _collateralToken
+        ] -= _amountCollateral;
+
+        emit DSC_Engine_Collateral_Redeemed(
+            msg.sender,
+            _collateralToken,
+            _amountCollateral
+        );
+
+        bool success = IERC20(_collateralToken).transfer(
+            msg.sender,
+            _amountCollateral
+        );
+
+        require(success, DSC_Engine_Collateral_TransferFailed());
+
+        _revertIfUnhealthy(msg.sender);
+    }
+
+    /**
+     * @notice Mints DSC stablecoins
+     * @dev User must have sufficient collateral to maintain health factor
+     * @param _amountDSCToMint The amount of DSC to mint
+     */
+
+    function mintDSC(
+        uint256 _amountDSCToMint
+    ) public moreThanZero(_amountDSCToMint) nonReentrant returns (bool minted) {
+        s_userToDSCAmountMinted[msg.sender] += _amountDSCToMint;
+
+        _revertIfUnhealthy(msg.sender);
+
+        minted = i_dsc.mint(msg.sender, _amountDSCToMint);
+
+        require(minted, DSC_Engine_DSC_MintFailed());
+    }
 
     /**
      * @notice Batch sets price feeds for multiple collateral tokens

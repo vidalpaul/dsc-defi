@@ -22,6 +22,7 @@ interface IDSCEngine {
     error DSC_Engine_Collateral_CannotRemoveLastCollateral();
     error DSC_Engine_Collateral_HasActiveBalance();
 
+    erroe DSC_Engine_DSC_BurnFailed();
     error DSC_Engine_DSC_MintFailed();
 
     error DSC_Engine_Health_UnhealthyPosition();
@@ -42,6 +43,12 @@ interface IDSCEngine {
         address indexed user,
         address indexed collateralToken,
         uint256 indexed amountCollateral
+    );
+
+    event DSC_Engine_Collateral_Redeemed(
+        address indexed user,
+        address indexed _collateralToken,
+        uint256 indexed _amountCollateral
     );
 
     event DSC_Engine_PriceFeed_Unset(address indexed collateralToken);
