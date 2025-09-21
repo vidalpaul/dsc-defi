@@ -28,20 +28,13 @@ contract DSC_Unit_Test is Test {
     uint256 public constant BURN_AMOUNT = 50e18;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     function setUp() public {
         deployer = new DSC_Protocol_DeployScript();
         deployer.setTestMode(true);
-        (dsc, dscEngine, ) = deployer.run();
+        (dsc, dscEngine,) = deployer.run();
     }
 
     /////////////////////
@@ -316,19 +309,12 @@ contract DSC_Unit_Test is Test {
         dsc.approve(USER_BOB, MINT_AMOUNT);
 
         vm.prank(USER_BOB);
-        bool success = dsc.transferFrom(
-            USER_ALICE,
-            address(dscEngine),
-            BURN_AMOUNT
-        );
+        bool success = dsc.transferFrom(USER_ALICE, address(dscEngine), BURN_AMOUNT);
 
         assertTrue(success);
         assertEq(dsc.balanceOf(USER_ALICE), MINT_AMOUNT - BURN_AMOUNT);
         assertEq(dsc.balanceOf(address(dscEngine)), BURN_AMOUNT);
-        assertEq(
-            dsc.allowance(USER_ALICE, USER_BOB),
-            MINT_AMOUNT - BURN_AMOUNT
-        );
+        assertEq(dsc.allowance(USER_ALICE, USER_BOB), MINT_AMOUNT - BURN_AMOUNT);
     }
 
     function test_TransferFrom_RevertsWhenInsufficientAllowance() public {
