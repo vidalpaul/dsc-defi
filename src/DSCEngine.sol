@@ -309,7 +309,6 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         public
         moreThanZero(_amountCollateral)
         collateralIsMapped(_collateralToken)
-        nonReentrant
     {
         s_userToCollateralTokenToAmount[msg.sender][_collateralToken] += _amountCollateral;
 
@@ -339,12 +338,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
      * @dev User must have sufficient collateral to maintain health factor
      * @param _amountDSCToMint The amount of DSC to mint
      */
-    function mintDSC(uint256 _amountDSCToMint)
-        public
-        moreThanZero(_amountDSCToMint)
-        nonReentrant
-        returns (bool minted)
-    {
+    function mintDSC(uint256 _amountDSCToMint) public moreThanZero(_amountDSCToMint) returns (bool minted) {
         s_userToDSCAmountMinted[msg.sender] += _amountDSCToMint;
 
         _revertIfUnhealthy(msg.sender);
@@ -511,7 +505,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
         view
         returns (uint256 _tokenAmount)
     {
-        return DSCLib.getTokenAmountFromUSD(s_priceFeeds[_collateralToken], _usdAmountInWei);
+        return DSCLib.getTokenAmountFromUSDWithCheck(s_priceFeeds[_collateralToken], _usdAmountInWei);
     }
 
     /**
@@ -522,7 +516,7 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
      * @return usdValue The USD value of the token amount
      */
     function getUSDValue(address _collateralToken, uint256 _amount) public view returns (uint256 usdValue) {
-        return DSCLib.getUSDValue(s_priceFeeds[_collateralToken], _amount);
+        return DSCLib.getUSDValueWithCheck(s_priceFeeds[_collateralToken], _amount);
     }
 
     // =============================================================
