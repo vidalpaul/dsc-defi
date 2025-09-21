@@ -61,6 +61,23 @@ library DSCLib {
     }
 
     /**
+     * @notice Gets the latest price from a Chainlink price feed with staleness check
+     * @param _priceFeed The address of the Chainlink price feed
+     * @return price The latest price from the feed
+     */
+    function getLatestPriceWithCheck(address _priceFeed) internal view returns (uint256 price) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(_priceFeed);
+        (, int256 priceInt,, uint256 updatedAt,) = priceFeed.latestRoundData();
+
+        // Check if price is stale (more than 3 hours old)
+        if (block.timestamp - updatedAt > 3600 * 3) {
+            revert("DSCLib: Stale price data");
+        }
+
+        return uint256(priceInt);
+    }
+
+    /**
      * @notice Converts token amount to USD value using price feed
      * @param _priceFeed The address of the Chainlink price feed
      * @param _amount The amount of tokens to convert
@@ -68,6 +85,17 @@ library DSCLib {
      */
     function getUSDValue(address _priceFeed, uint256 _amount) internal view returns (uint256 usdValue) {
         uint256 price = getLatestPrice(_priceFeed);
+        return ((price * ADDITIONAL_FEED_PRECISION) * _amount) / 1e18;
+    }
+
+    /**
+     * @notice Converts token amount to USD value using price feed with staleness check
+     * @param _priceFeed The address of the Chainlink price feed
+     * @param _amount The amount of tokens to convert
+     * @return usdValue The USD value of the token amount
+     */
+    function getUSDValueWithCheck(address _priceFeed, uint256 _amount) internal view returns (uint256 usdValue) {
+        uint256 price = getLatestPriceWithCheck(_priceFeed);
         return ((price * ADDITIONAL_FEED_PRECISION) * _amount) / 1e18;
     }
 
@@ -83,6 +111,21 @@ library DSCLib {
         returns (uint256 tokenAmount)
     {
         uint256 price = getLatestPrice(_priceFeed);
+        return (_usdAmountInWei * PRECISION) / (price * ADDITIONAL_FEED_PRECISION);
+    }
+
+    /**
+     * @notice Converts USD amount to token amount using price feed with staleness check
+     * @param _priceFeed The address of the Chainlink price feed
+     * @param _usdAmountInWei The USD amount to convert (in wei)
+     * @return tokenAmount The equivalent token amount
+     */
+    function getTokenAmountFromUSDWithCheck(address _priceFeed, uint256 _usdAmountInWei)
+        internal
+        view
+        returns (uint256 tokenAmount)
+    {
+        uint256 price = getLatestPriceWithCheck(_priceFeed);
         return (_usdAmountInWei * PRECISION) / (price * ADDITIONAL_FEED_PRECISION);
     }
 

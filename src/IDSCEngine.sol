@@ -31,6 +31,8 @@ interface IDSCEngine {
     error DSC_Engine_Liquidate_CannotLiquidateIfItWorsensDebtorHealth();
     error DSC_Engine_Liquidate_InsufficientCollateralToLiquidate();
 
+    error DSC_Engine_PriceFeed_StalePrice();
+
     // =============================================================
     //                       TYPES
     // =============================================================
