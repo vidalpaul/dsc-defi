@@ -524,6 +524,21 @@ contract DSCEngine is IDSCEngine, ReentrancyGuard {
     // =============================================================
 
     /**
+     * @notice Gets account information for a user
+     * @dev Returns the total DSC minted and collateral value for a user
+     * @param _user The address of the user to query
+     * @return totalDSCMinted The total amount of DSC tokens minted by the user
+     * @return collateralValueInUSD The total USD value of user's collateral
+     */
+    function getAccountInformation(address _user)
+        public
+        view
+        returns (uint256 totalDSCMinted, uint256 collateralValueInUSD)
+    {
+        return _getAccountInformation(_user);
+    }
+
+    /**
      * @notice Gets the collateral amount deposited by a user for a specific token
      * @param _user The address of the user
      * @param _collateralToken The address of the collateral token
