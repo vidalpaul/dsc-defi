@@ -792,7 +792,7 @@ contract DSCEngine_Unit_Test is Test {
 
     /**
      * @notice Tests handling of stale price feed data
-     * @dev Verifies the system rejects price data older than 3 hours
+     * @dev Verifies the system rejects price data older than 3601 seconds (following Chainlink docs)
      */
     function test_PriceFeedFailureHandling() public {
         // Test what happens when price feed returns stale or invalid data
@@ -807,12 +807,12 @@ contract DSCEngine_Unit_Test is Test {
         MockV3Aggregator(wethPriceFeed).updateAnswer(2000e8);
         dscEngine.depositCollateral(weth, AMOUNT_COLLATERAL);
 
-        // Now update to stale data (timestamp more than 3 hours old)
+        // Now update to stale data (timestamp more than 3601 seconds old)
         MockV3Aggregator(wethPriceFeed).updateRoundData(
             2, // roundId
             2000e8, // answer
-            block.timestamp - 10801, // timestamp - more than 3 hours old
-            block.timestamp - 10802 // startedAt - even older
+            block.timestamp - 3602, // timestamp - more than 3601 seconds old
+            block.timestamp - 3603 // startedAt - even older
         );
 
         // Try to mint DSC with stale price - this should revert

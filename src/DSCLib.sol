@@ -69,8 +69,8 @@ library DSCLib {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(_priceFeed);
         (, int256 priceInt,, uint256 updatedAt,) = priceFeed.latestRoundData();
 
-        // Check if price is stale (more than 3 hours old)
-        if (block.timestamp - updatedAt > 3600 * 3) {
+        // Check if price is stale (more than 3601 seconds old)
+        if (block.timestamp - updatedAt > 3601) {
             revert("DSCLib: Stale price data");
         }
 
