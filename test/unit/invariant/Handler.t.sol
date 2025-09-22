@@ -11,6 +11,7 @@ import {DSCEngine} from "../../../src/DSCEngine.sol";
 import {ConfigHelper} from "../../../script/Config_Helper.s.sol";
 import {DSC_Protocol_DeployScript} from "../../../script/DSC_Protocol_Deploy.s.sol";
 import {ERC20Mock} from "../../mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "../../mocks/MockV3Aggregator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -30,6 +31,10 @@ contract Handler is StdInvariant, Test {
     ERC20Mock weth;
     ERC20Mock wbtc;
     ERC20Mock wsol;
+    MockV3Aggregator public wethUSDPriceFeed;
+
+    uint256 public mintDSCCallsCounter;
+    address[] public usersWithCollateralDeposited;
 
     constructor(DSCEngine _dscEngine, DSC _dsc) {
         dscEngine = _dscEngine;
@@ -39,6 +44,8 @@ contract Handler is StdInvariant, Test {
         weth = ERC20Mock(collateralTokens[0]);
         wbtc = ERC20Mock(collateralTokens[1]);
         wsol = ERC20Mock(collateralTokens[2]);
+
+        wethUSDPriceFeed = MockV3Aggregator(dscEngine.getPriceFeed(address(weth)));
     }
 
     function depositCollateral(uint256 _collateralSeed, uint256 _amountCollateral) public {
@@ -53,6 +60,8 @@ contract Handler is StdInvariant, Test {
         dscEngine.depositCollateral(address(collateralToken), amountCollateral);
 
         vm.stopPrank();
+
+        usersWithCollateralDeposited.push(msg.sender);
     }
 
     function redeemCollateral(uint256 _collateralSeed, uint256 _amountCollateral) public {
@@ -70,6 +79,42 @@ contract Handler is StdInvariant, Test {
         dscEngine.redeemCollateral(address(collateralToken), amountCollateral);
 
         vm.stopPrank();
+    }
+
+    /* ignore for now
+    function updateCollateralPrice(uint96 _newPrice) public {
+        int256 price = int256(uint256(_newPrice));
+        wethUSDPriceFeed.updateAnswer(price);
+    } 
+    */
+
+    function mintDSC(uint256 _amount, uint256 _addressSeed) public {
+        if (usersWithCollateralDeposited.length == 0) {
+            return;
+        }
+
+        address sender = usersWithCollateralDeposited[_addressSeed % usersWithCollateralDeposited.length];
+
+        vm.startPrank(sender);
+
+        (uint256 totalDSCMinted, uint256 collateralValueInUSD) = dscEngine.getAccountInformation(sender);
+
+        int256 maxDSCToMint = (int256(collateralValueInUSD) / 2 - int256(totalDSCMinted));
+
+        if (maxDSCToMint < 0) {
+            return;
+        }
+
+        uint256 amount = bound(_amount, 0, uint256(maxDSCToMint));
+
+        if (amount == 0) {
+            return;
+        }
+
+        dscEngine.mintDSC(amount);
+        vm.stopPrank();
+
+        mintDSCCallsCounter++;
     }
 
     function _getUint96MoreThanZero(uint256 amountSeed) private pure returns (uint256 amount) {

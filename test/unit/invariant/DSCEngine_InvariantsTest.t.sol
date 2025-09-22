@@ -57,10 +57,28 @@ contract InvariantsTest is StdInvariant, Test {
 
         uint256 totalFromTokens = wethValue + wbtcValue + wsolValue;
 
+        console.log("Mint was called ", handler.mintDSCCallsCounter(), " times");
+
         if (totalFromTokens > 0) {
             console.log("totalFromTokens: ", totalFromTokens);
             console.log("totalSuply: ", totalSupply);
             assert(totalFromTokens > totalSupply);
         }
+    }
+
+    function invariant_gettersShouldNotRevert() public view {
+        dscEngine.getDSCMinted(address(this));
+        dscEngine.getCollateralTokens();
+        dscEngine.getDSCAddress();
+        dscEngine.getMinHealthFactor();
+        dscEngine.getLiquidationThreshold();
+        dscEngine.getLiquidationBonus();
+
+        dsc.totalSupply();
+        dsc.balanceOf(address(this));
+        dsc.name();
+        dsc.symbol();
+        dsc.decimals();
+        dsc.owner();
     }
 }
